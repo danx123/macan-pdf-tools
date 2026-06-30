@@ -30,17 +30,23 @@ The application will continue to run normally for other features.
 """
 
 import sys
+# Menipu sistem agar mengira NumPy sudah gagal diimpor
+sys.modules['numpy'] = None  
 import os
 import io
+import json
+import subprocess
+import urllib.request
+import urllib.error
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QListWidget, QListWidgetItem, QAbstractItemView,
     QFileDialog, QLineEdit, QComboBox, QSpinBox, QFrame, QProgressBar,
-    QMessageBox, QStackedWidget, QSplitter
+    QMessageBox, QStackedWidget, QSplitter, QScrollArea, QSizePolicy
 )
-from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot, QRunnable, QThreadPool, QSettings, QByteArray
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QDragEnterEvent, QDragMoveEvent, QDropEvent
+from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot, QRunnable, QThreadPool, QSettings, QByteArray, QUrl
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QDragEnterEvent, QDragMoveEvent, QDropEvent, QDesktopServices, QFont
 from PySide6.QtSvg import QSvgRenderer
 
 from PIL import Image, ImageOps
@@ -75,6 +81,9 @@ ORG_NAME = "MacanAngkasa"
 APP_NAME = "MacanPdfToolsStandalone"
 IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.bmp', '.webp', '.gif']
 PDF_EXT = ['.pdf']
+
+UPDATE_JSON_URL = "https://raw.githubusercontent.com/danx123/macan-pdf-tools/main/version.json"
+REPO_URL = "https://github.com/danx123/macan-pdf-tools"
 
 
 def get_app_dir():
@@ -149,6 +158,53 @@ LANGUAGES = {
         "docconv_no_files": "Tambahkan file PDF terlebih dahulu.",
         "convert_to_label": "Konversi ke:",
         "missing_libs_label": "Belum terpasang: {items}",
+
+        # Estimated size
+        "estimated_size_label": "Estimasi Ukuran:",
+        "estimated_size_empty": "-",
+        "estimated_size_calc": "± {size}",
+        "estimated_size_target": "≤ {target} (target)",
+
+        # Open output folder after done
+        "open_folder_failed": "Gagal membuka folder output:\n{err}",
+
+        # About page
+        "nav_about": "Tentang",
+        "about_app_title": "Macan PDF Tools",
+        "about_edition": "Standalone Edition",
+        "about_version_label": "Versi:",
+        "about_tagline": "Toolkit PDF ringan & cepat — dioptimalkan untuk PC/laptop low-spec tanpa AVX/AVX2.",
+        "about_description": (
+            "Macan PDF Tools adalah aplikasi desktop ringan untuk mengelola dokumen PDF "
+            "sehari-hari: mengubah gambar menjadi PDF, mengekstrak halaman PDF menjadi gambar, "
+            "menggabungkan beberapa PDF sekaligus mengompresinya, serta mengonversi PDF ke "
+            "format TXT, DOCX, dan XLSX. Seluruh pemrosesan gambar memakai Pillow murni dan "
+            "rendering PDF memakai pypdfium2, sehingga aman dijalankan pada CPU lama yang tidak "
+            "mendukung instruksi AVX/AVX2."
+        ),
+        "about_features_title": "Fitur Utama",
+        "about_features": [
+            "Image to PDF — gabungkan banyak gambar menjadi satu atau beberapa file PDF",
+            "PDF to Image — ekspor halaman PDF ke PNG / JPG / WEBP dengan kontrol DPI",
+            "PDF Merger — gabungkan PDF dengan opsi kompresi ukuran target",
+            "Konversi Dokumen — PDF ke TXT, DOCX, dan XLSX",
+        ],
+        "about_dependencies_title": "Status Dependency",
+        "about_dep_required": "(wajib)",
+        "about_dep_optional": "(opsional)",
+        "about_dep_installed": "Terpasang",
+        "about_dep_missing": "Tidak terpasang",
+        "about_update_title": "Pembaruan Aplikasi",
+        "about_check_update_btn": "Cek Pembaruan",
+        "about_checking_update": "Memeriksa pembaruan...",
+        "about_up_to_date": "Aplikasi sudah versi terbaru ({version}).",
+        "about_update_available": "Versi baru tersedia: {version} (saat ini {current}).",
+        "about_update_error": "Gagal memeriksa pembaruan:\n{err}",
+        "about_update_notes_title": "Catatan rilis:",
+        "about_open_download_btn": "Buka Halaman Unduhan",
+        "about_open_repo_btn": "Kunjungi Repository",
+        "about_credits": "Dikembangkan oleh Macan Angkasa. Dibangun dengan Python, PySide6, Pillow, dan pypdfium2.",
+        "about_copyright": "© {year} Macan Angkasa — Hak cipta dilindungi.",
     },
     "en": {
         "window_title": "Macan PDF Tools — Standalone (v{version})",
@@ -208,6 +264,52 @@ LANGUAGES = {
         "docconv_no_files": "Please add PDF files first.",
         "convert_to_label": "Convert to:",
         "missing_libs_label": "Not installed: {items}",
+
+        # Estimated size
+        "estimated_size_label": "Estimated Size:",
+        "estimated_size_empty": "-",
+        "estimated_size_calc": "± {size}",
+        "estimated_size_target": "≤ {target} (target)",
+
+        # Open output folder after done
+        "open_folder_failed": "Failed to open output folder:\n{err}",
+
+        # About page
+        "nav_about": "About",
+        "about_app_title": "Macan PDF Tools",
+        "about_edition": "Standalone Edition",
+        "about_version_label": "Version:",
+        "about_tagline": "A lightweight, fast PDF toolkit — optimized for low-spec PCs/laptops without AVX/AVX2.",
+        "about_description": (
+            "Macan PDF Tools is a lightweight desktop application for everyday PDF management: "
+            "turning images into PDFs, exporting PDF pages as images, merging multiple PDFs while "
+            "compressing them, and converting PDFs into TXT, DOCX, and XLSX formats. All image "
+            "processing uses pure Pillow and PDF rendering uses pypdfium2, making it safe to run "
+            "on older CPUs that do not support AVX/AVX2 instructions."
+        ),
+        "about_features_title": "Key Features",
+        "about_features": [
+            "Image to PDF — combine multiple images into one or several PDF files",
+            "PDF to Image — export PDF pages to PNG / JPG / WEBP with DPI control",
+            "PDF Merger — merge PDFs with optional target-size compression",
+            "Document Conversion — PDF to TXT, DOCX, and XLSX",
+        ],
+        "about_dependencies_title": "Dependency Status",
+        "about_dep_required": "(required)",
+        "about_dep_optional": "(optional)",
+        "about_dep_installed": "Installed",
+        "about_dep_missing": "Not installed",
+        "about_update_title": "Application Update",
+        "about_check_update_btn": "Check for Updates",
+        "about_checking_update": "Checking for updates...",
+        "about_up_to_date": "You're on the latest version ({version}).",
+        "about_update_available": "A new version is available: {version} (current {current}).",
+        "about_update_error": "Failed to check for updates:\n{err}",
+        "about_update_notes_title": "Release notes:",
+        "about_open_download_btn": "Open Download Page",
+        "about_open_repo_btn": "Visit Repository",
+        "about_credits": "Developed by Macan Angkasa. Built with Python, PySide6, Pillow, and pypdfium2.",
+        "about_copyright": "© {year} Macan Angkasa — All rights reserved.",
     },
 }
 
@@ -260,6 +362,15 @@ NAV_SVG_ICONS = {
             <path d="M16 9.8a3.6 3.6 0 0 1 5.8-1.1M22 7.5v2.4h-2.4"/>
             <path d="M22.2 12.4a3.6 3.6 0 0 1-5.8 1.1M16 14.7v-2.4h2.4"/>
         </svg>""",
+
+    # About — info circle
+    "about": """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+             stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.5"/>
+            <line x1="12" y1="10.7" x2="12" y2="16.5"/>
+            <circle cx="12" cy="7.6" r="1" fill="{color}" stroke="none"/>
+        </svg>""",
 }
 
 
@@ -274,6 +385,33 @@ def svg_to_icon(svg_key, color="#C8C8C8", size=20):
     renderer.render(painter)
     painter.end()
     return QIcon(pix)
+
+
+def human_size(num_bytes):
+    """Format angka byte jadi string ukuran yang manusiawi (KB/MB/GB)."""
+    if num_bytes is None:
+        return "-"
+    size = float(num_bytes)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024.0 or unit == "GB":
+            return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} GB"
+
+
+def open_in_file_manager(folder_path):
+    """Buka folder output di file manager OS (Explorer/Finder/Nautilus dkk)."""
+    if not folder_path or not os.path.isdir(folder_path):
+        return
+    try:
+        if sys.platform.startswith("win"):
+            os.startfile(folder_path)  # noqa: P201 (Windows only)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", folder_path])
+        else:
+            subprocess.Popen(["xdg-open", folder_path])
+    except Exception:
+        QDesktopServices.openUrl(QUrl.fromLocalFile(folder_path))
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -1062,7 +1200,16 @@ class BaseToolPage(QWidget):
         self.progress_bar.setValue(100)
         self.status_label.setText(detail)
         QMessageBox.information(self, self.lang["done_title"], detail)
+        self._open_output_folder()
         self._cleanup_thread()
+
+    def _open_output_folder(self):
+        out = self.output_row.get_path()
+        try:
+            open_in_file_manager(out)
+        except Exception as e:
+            QMessageBox.warning(self, self.lang["error_title"],
+                                 self.lang["open_folder_failed"].format(err=e))
 
     @Slot(str)
     def _on_error(self, message):
@@ -1113,7 +1260,45 @@ class ImageToPdfPage(BaseToolPage):
         self.target_spin.setToolTip(lang["target_size_hint"])
         grid.addWidget(self.target_spin, 2, 1)
 
+        self.estimated_size_label_title = QLabel(lang["estimated_size_label"])
+        grid.addWidget(self.estimated_size_label_title, 3, 0)
+        self.estimated_size_value = QLabel(lang["estimated_size_empty"])
+        self.estimated_size_value.setStyleSheet("color: #9FBF9F; font-weight: bold; background: transparent;")
+        grid.addWidget(self.estimated_size_value, 3, 1)
+
         layout.addLayout(grid)
+
+        # update estimasi setiap kali file / opsi berubah
+        self.drop_area.files_changed.connect(self._update_estimated_size)
+        self.quality_combo.currentIndexChanged.connect(self._update_estimated_size)
+        self.output_combo.currentIndexChanged.connect(self._update_estimated_size)
+        self.target_spin.valueChanged.connect(self._update_estimated_size)
+        self._update_estimated_size()
+
+    # Faktor kompresi kasar relatif terhadap ukuran file gambar asli,
+    # dipakai hanya sebagai estimasi (bukan hitungan presisi).
+    _QUALITY_SIZE_FACTOR = {0: 1.0, 1: 0.85, 2: 0.6, 3: 0.45, 4: 0.25}
+
+    def _update_estimated_size(self):
+        img_paths = self._filtered_paths(IMAGE_EXT)
+        if not img_paths:
+            self.estimated_size_value.setText(self.lang["estimated_size_empty"])
+            return
+        try:
+            total_bytes = sum(os.path.getsize(p) for p in img_paths if os.path.isfile(p))
+        except OSError:
+            total_bytes = 0
+        factor = self._QUALITY_SIZE_FACTOR.get(self.quality_combo.currentIndex(), 0.6)
+        estimated_bytes = total_bytes * factor
+
+        target_mb = self.target_spin.value()
+        if target_mb > 0:
+            estimated_bytes = min(estimated_bytes, target_mb * 1024 * 1024)
+            self.estimated_size_value.setText(
+                self.lang["estimated_size_target"].format(target=human_size(target_mb * 1024 * 1024)))
+        else:
+            self.estimated_size_value.setText(
+                self.lang["estimated_size_calc"].format(size=human_size(estimated_bytes)))
 
     def retranslate_options(self, lang):
         self.start_btn.setText(lang["img2pdf_start_btn"])
@@ -1121,9 +1306,11 @@ class ImageToPdfPage(BaseToolPage):
         self.out_mode_label.setText(lang["out_mode_label"])
         self.target_size_label.setText(lang["target_size_label"])
         self.target_spin.setToolTip(lang["target_size_hint"])
+        self.estimated_size_label_title.setText(lang["estimated_size_label"])
         idx_q, idx_o = self.quality_combo.currentIndex(), self.output_combo.currentIndex()
         self.quality_combo.clear(); self.quality_combo.addItems(lang["qualities"]); self.quality_combo.setCurrentIndex(idx_q)
         self.output_combo.clear(); self.output_combo.addItems(lang["out_modes"]); self.output_combo.setCurrentIndex(idx_o)
+        self._update_estimated_size()
 
     def _on_start_clicked(self):
         img_paths = self._filtered_paths(IMAGE_EXT)
@@ -1221,6 +1408,12 @@ class PdfMergerPage(BaseToolPage):
         self.target_spin.setToolTip(lang["target_size_hint"])
         grid.addWidget(self.target_spin, 1, 1)
 
+        self.estimated_size_label_title = QLabel(lang["estimated_size_label"])
+        grid.addWidget(self.estimated_size_label_title, 2, 0)
+        self.estimated_size_value = QLabel(lang["estimated_size_empty"])
+        self.estimated_size_value.setStyleSheet("color: #9FBF9F; font-weight: bold; background: transparent;")
+        grid.addWidget(self.estimated_size_value, 2, 1)
+
         layout.addLayout(grid)
 
         self.pikepdf_note = None
@@ -1229,15 +1422,49 @@ class PdfMergerPage(BaseToolPage):
             self.pikepdf_note.setStyleSheet("color: #d08770; font-size: 8pt; background: transparent;")
             layout.addWidget(self.pikepdf_note)
 
+        self.drop_area.files_changed.connect(self._update_estimated_size)
+        self.quality_combo.currentIndexChanged.connect(self._update_estimated_size)
+        self.target_spin.valueChanged.connect(self._update_estimated_size)
+        self._update_estimated_size()
+
+    # Faktor kompresi kasar relatif terhadap total ukuran PDF asli,
+    # dipakai hanya sebagai estimasi (bukan hitungan presisi).
+    _MERGE_SIZE_FACTOR = {0: 1.0, 1: 0.55, 2: 0.35}
+
+    def _update_estimated_size(self):
+        pdf_paths = self._filtered_paths(PDF_EXT)
+        if not pdf_paths:
+            self.estimated_size_value.setText(self.lang["estimated_size_empty"])
+            return
+        try:
+            total_bytes = sum(os.path.getsize(p) for p in pdf_paths if os.path.isfile(p))
+        except OSError:
+            total_bytes = 0
+        factor = self._MERGE_SIZE_FACTOR.get(self.quality_combo.currentIndex(), 1.0)
+        if not HAS_PIKEPDF:
+            factor = 1.0  # tanpa pikepdf hanya merge struktural, tidak ada kompresi
+        estimated_bytes = total_bytes * factor
+
+        target_mb = self.target_spin.value()
+        if target_mb > 0 and HAS_PIKEPDF:
+            estimated_bytes = min(estimated_bytes, target_mb * 1024 * 1024)
+            self.estimated_size_value.setText(
+                self.lang["estimated_size_target"].format(target=human_size(target_mb * 1024 * 1024)))
+        else:
+            self.estimated_size_value.setText(
+                self.lang["estimated_size_calc"].format(size=human_size(estimated_bytes)))
+
     def retranslate_options(self, lang):
         self.start_btn.setText(lang["merger_start_btn"])
         self.quality_label.setText(lang["quality_label"])
         self.target_size_label.setText(lang["target_size_label"])
         self.target_spin.setToolTip(lang["target_size_hint"])
+        self.estimated_size_label_title.setText(lang["estimated_size_label"])
         idx_q = self.quality_combo.currentIndex()
         self.quality_combo.clear(); self.quality_combo.addItems(lang["merger_qualities"]); self.quality_combo.setCurrentIndex(idx_q)
         if self.pikepdf_note:
             self.pikepdf_note.setText(lang["merger_pikepdf_note"])
+        self._update_estimated_size()
 
     def _on_start_clicked(self):
         pdf_paths = self._filtered_paths(PDF_EXT)
@@ -1311,6 +1538,301 @@ class PdfDocConversionPage(BaseToolPage):
 
 
 # ──────────────────────────────────────────────────────────────────────────
+#  Update checker — fetch version.json di background (tidak memblokir UI)
+# ──────────────────────────────────────────────────────────────────────────
+class _UpdateCheckSignals(QObject):
+    finished = Signal(dict)
+    error = Signal(str)
+
+
+class UpdateCheckWorker(QRunnable):
+    def __init__(self, url):
+        super().__init__()
+        self.url = url
+        self.signals = _UpdateCheckSignals()
+
+    def run(self):
+        try:
+            req = urllib.request.Request(self.url, headers={"User-Agent": "MacanPdfTools/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                raw = resp.read().decode("utf-8")
+            data = json.loads(raw)
+            if not isinstance(data, dict):
+                raise ValueError("Unexpected JSON format")
+            self.signals.finished.emit(data)
+        except urllib.error.URLError as e:
+            self.signals.error.emit(str(getattr(e, "reason", e)))
+        except Exception as e:
+            self.signals.error.emit(str(e))
+
+
+def _version_tuple(v):
+    """Ubah string versi (mis. '1.3.0') jadi tuple int untuk dibandingkan."""
+    parts = []
+    for chunk in str(v).strip().split('.'):
+        digits = ''.join(ch for ch in chunk if ch.isdigit())
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts) if parts else (0,)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  About page — info aplikasi, status dependency, dan cek pembaruan
+# ──────────────────────────────────────────────────────────────────────────
+class AboutPage(QWidget):
+    def __init__(self, lang, parent=None):
+        super().__init__(parent)
+        self.lang = lang
+        self.thread_pool = QThreadPool.globalInstance()
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        scroll.setWidget(content)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(30, 26, 30, 26)
+        layout.setSpacing(18)
+
+        # ── Header: logo + nama + versi ──
+        header_row = QHBoxLayout()
+        header_row.setSpacing(16)
+
+        self.logo_label = QLabel()
+        pix = QPixmap(LOGO_PATH)
+        if not pix.isNull():
+            pix = pix.scaledToHeight(64, Qt.TransformationMode.SmoothTransformation)
+            self.logo_label.setPixmap(pix)
+        self.logo_label.setFixedSize(64, 64)
+        self.logo_label.setStyleSheet("background: transparent;")
+        header_row.addWidget(self.logo_label)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(2)
+        self.app_title_label = QLabel(f"<span style='font-size:18pt; font-weight:700;'>{lang['about_app_title']}</span>")
+        self.app_title_label.setStyleSheet("background: transparent;")
+        self.edition_label = QLabel(lang["about_edition"])
+        self.edition_label.setStyleSheet("color: #9AA0A6; background: transparent;")
+        self.version_label = QLabel(f"{lang['about_version_label']} {APP_VERSION}")
+        self.version_label.setStyleSheet("color: #C8C8C8; background: transparent;")
+        title_col.addWidget(self.app_title_label)
+        title_col.addWidget(self.edition_label)
+        title_col.addWidget(self.version_label)
+        header_row.addLayout(title_col)
+        header_row.addStretch()
+        layout.addLayout(header_row)
+
+        self.tagline_label = QLabel(lang["about_tagline"])
+        self.tagline_label.setWordWrap(True)
+        self.tagline_label.setStyleSheet("color: #A3BE8C; font-style: italic; background: transparent;")
+        layout.addWidget(self.tagline_label)
+
+        layout.addWidget(self._hline())
+
+        # ── Description ──
+        self.description_label = QLabel(lang["about_description"])
+        self.description_label.setWordWrap(True)
+        self.description_label.setStyleSheet("background: transparent; line-height: 140%;")
+        layout.addWidget(self.description_label)
+
+        # ── Features ──
+        self.features_title_label = QLabel(f"<b>{lang['about_features_title']}</b>")
+        self.features_title_label.setStyleSheet("background: transparent; font-size: 11pt;")
+        layout.addWidget(self.features_title_label)
+
+        self.features_box = QVBoxLayout()
+        self.features_box.setSpacing(4)
+        layout.addLayout(self.features_box)
+        self._populate_features(lang)
+
+        layout.addWidget(self._hline())
+
+        # ── Dependency status ──
+        self.dep_title_label = QLabel(f"<b>{lang['about_dependencies_title']}</b>")
+        self.dep_title_label.setStyleSheet("background: transparent; font-size: 11pt;")
+        layout.addWidget(self.dep_title_label)
+
+        self.dep_grid = QGridLayout()
+        self.dep_grid.setSpacing(6)
+        layout.addLayout(self.dep_grid)
+        self._populate_dependencies(lang)
+
+        layout.addWidget(self._hline())
+
+        # ── Update check ──
+        self.update_title_label = QLabel(f"<b>{lang['about_update_title']}</b>")
+        self.update_title_label.setStyleSheet("background: transparent; font-size: 11pt;")
+        layout.addWidget(self.update_title_label)
+
+        update_row = QHBoxLayout()
+        self.check_update_btn = QPushButton(lang["about_check_update_btn"])
+        self.check_update_btn.setObjectName("startButton")
+        self.check_update_btn.clicked.connect(self._check_for_update)
+        update_row.addWidget(self.check_update_btn)
+
+        self.open_download_btn = QPushButton(lang["about_open_download_btn"])
+        self.open_download_btn.setVisible(False)
+        self.open_download_btn.clicked.connect(self._open_download_url)
+        update_row.addWidget(self.open_download_btn)
+        update_row.addStretch()
+        layout.addLayout(update_row)
+
+        self.update_status_label = QLabel("")
+        self.update_status_label.setWordWrap(True)
+        self.update_status_label.setStyleSheet("background: transparent;")
+        layout.addWidget(self.update_status_label)
+
+        self.update_notes_title_label = QLabel(f"<b>{lang['about_update_notes_title']}</b>")
+        self.update_notes_title_label.setStyleSheet("background: transparent;")
+        self.update_notes_title_label.setVisible(False)
+        layout.addWidget(self.update_notes_title_label)
+
+        self.update_notes_label = QLabel("")
+        self.update_notes_label.setWordWrap(True)
+        self.update_notes_label.setStyleSheet("color: #C8C8C8; background: transparent;")
+        layout.addWidget(self.update_notes_label)
+
+        self._latest_download_url = None
+
+        layout.addWidget(self._hline())
+
+        # ── Links + credits ──
+        link_row = QHBoxLayout()
+        self.repo_btn = QPushButton(lang["about_open_repo_btn"])
+        self.repo_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(REPO_URL)))
+        link_row.addWidget(self.repo_btn)
+        link_row.addStretch()
+        layout.addLayout(link_row)
+
+        self.credits_label = QLabel(lang["about_credits"])
+        self.credits_label.setWordWrap(True)
+        self.credits_label.setStyleSheet("color: #9AA0A6; font-size: 9pt; background: transparent;")
+        layout.addWidget(self.credits_label)
+
+        import datetime
+        self.copyright_label = QLabel(lang["about_copyright"].format(year=datetime.date.today().year))
+        self.copyright_label.setStyleSheet("color: #777777; font-size: 8pt; background: transparent;")
+        layout.addWidget(self.copyright_label)
+
+        layout.addStretch()
+
+    def _hline(self):
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setStyleSheet("color: #444444; background-color: #444444; max-height: 1px;")
+        return line
+
+    def _populate_features(self, lang):
+        # bersihkan dulu kalau retranslate
+        while self.features_box.count():
+            item = self.features_box.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+        for feat in lang["about_features"]:
+            row = QLabel(f"•  {feat}")
+            row.setWordWrap(True)
+            row.setStyleSheet("background: transparent;")
+            self.features_box.addWidget(row)
+
+    def _populate_dependencies(self, lang):
+        while self.dep_grid.count():
+            item = self.dep_grid.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+        deps = [
+            ("pypdfium2", HAS_PDFIUM, True),
+            ("pikepdf", HAS_PIKEPDF, False),
+            ("python-docx", HAS_DOCX, False),
+            ("openpyxl", HAS_OPENPYXL, False),
+        ]
+        for row, (name, installed, required) in enumerate(deps):
+            tag = lang["about_dep_required"] if required else lang["about_dep_optional"]
+            name_lbl = QLabel(f"{name}  <span style='color:#888888; font-size:8pt;'>{tag}</span>")
+            name_lbl.setStyleSheet("background: transparent;")
+            self.dep_grid.addWidget(name_lbl, row, 0)
+
+            status_text = lang["about_dep_installed"] if installed else lang["about_dep_missing"]
+            color = "#A3BE8C" if installed else ("#BF6160" if required else "#d08770")
+            status_lbl = QLabel(f"●  {status_text}")
+            status_lbl.setStyleSheet(f"color: {color}; background: transparent;")
+            self.dep_grid.addWidget(status_lbl, row, 1)
+
+    def retranslate(self, lang):
+        self.lang = lang
+        self.app_title_label.setText(f"<span style='font-size:18pt; font-weight:700;'>{lang['about_app_title']}</span>")
+        self.edition_label.setText(lang["about_edition"])
+        self.version_label.setText(f"{lang['about_version_label']} {APP_VERSION}")
+        self.tagline_label.setText(lang["about_tagline"])
+        self.description_label.setText(lang["about_description"])
+        self.features_title_label.setText(f"<b>{lang['about_features_title']}</b>")
+        self._populate_features(lang)
+        self.dep_title_label.setText(f"<b>{lang['about_dependencies_title']}</b>")
+        self._populate_dependencies(lang)
+        self.update_title_label.setText(f"<b>{lang['about_update_title']}</b>")
+        self.check_update_btn.setText(lang["about_check_update_btn"])
+        self.open_download_btn.setText(lang["about_open_download_btn"])
+        self.update_notes_title_label.setText(f"<b>{lang['about_update_notes_title']}</b>")
+        self.repo_btn.setText(lang["about_open_repo_btn"])
+        self.credits_label.setText(lang["about_credits"])
+        import datetime
+        self.copyright_label.setText(lang["about_copyright"].format(year=datetime.date.today().year))
+        self.update_status_label.setText("")
+
+    def _check_for_update(self):
+        self.check_update_btn.setEnabled(False)
+        self.open_download_btn.setVisible(False)
+        self.update_notes_title_label.setVisible(False)
+        self.update_notes_label.setText("")
+        self.update_status_label.setStyleSheet("background: transparent; color: #C8C8C8;")
+        self.update_status_label.setText(self.lang["about_checking_update"])
+
+        worker = UpdateCheckWorker(UPDATE_JSON_URL)
+        worker.signals.finished.connect(self._on_update_finished)
+        worker.signals.error.connect(self._on_update_error)
+        self.thread_pool.start(worker)
+
+    @Slot(dict)
+    def _on_update_finished(self, data):
+        self.check_update_btn.setEnabled(True)
+        latest_version = str(data.get("version", "")).strip()
+        notes = data.get("notes") or data.get("changelog") or data.get("release_notes") or ""
+        download_url = data.get("release_url") or data.get("download_url") or data.get("url") or REPO_URL
+        self._latest_download_url = download_url
+
+        if not latest_version:
+            self._on_update_error("Invalid version.json (missing 'version' field).")
+            return
+
+        if _version_tuple(latest_version) > _version_tuple(APP_VERSION):
+            self.update_status_label.setStyleSheet("background: transparent; color: #A3BE8C; font-weight: bold;")
+            self.update_status_label.setText(
+                self.lang["about_update_available"].format(version=latest_version, current=APP_VERSION))
+            self.open_download_btn.setVisible(True)
+            if notes:
+                self.update_notes_title_label.setVisible(True)
+                self.update_notes_label.setText(str(notes))
+        else:
+            self.update_status_label.setStyleSheet("background: transparent; color: #9AA0A6;")
+            self.update_status_label.setText(self.lang["about_up_to_date"].format(version=APP_VERSION))
+
+    @Slot(str)
+    def _on_update_error(self, err):
+        self.check_update_btn.setEnabled(True)
+        self.update_status_label.setStyleSheet("background: transparent; color: #BF6160;")
+        self.update_status_label.setText(self.lang["about_update_error"].format(err=err))
+
+    def _open_download_url(self):
+        if self._latest_download_url:
+            QDesktopServices.openUrl(QUrl(self._latest_download_url))
+
+
+# ──────────────────────────────────────────────────────────────────────────
 #  Main window
 # ──────────────────────────────────────────────────────────────────────────
 class MacanPdfToolsApp(QMainWindow):
@@ -1373,6 +1895,7 @@ class MacanPdfToolsApp(QMainWindow):
             PdfToImagePage(self.lang),
             PdfMergerPage(self.lang),
             PdfDocConversionPage(self.lang),
+            AboutPage(self.lang),
         ]
         for p in self.pages:
             self.stack.addWidget(p)
@@ -1402,7 +1925,7 @@ class MacanPdfToolsApp(QMainWindow):
         self._load_footer_logo()
         layout.addWidget(self.footer_logo_label)
 
-        self.footer_text_label = QLabel(f"Macan Angkasa - All Rights Reserved")
+        self.footer_text_label = QLabel(f"Macan Angkasa - All rights reserved")
         self.footer_text_label.setStyleSheet("background: transparent; color: #999999; font-size: 8pt;")
         layout.addWidget(self.footer_text_label)
 
@@ -1443,6 +1966,7 @@ class MacanPdfToolsApp(QMainWindow):
             ("pdf2img", self.lang["nav_pdf2img"]),
             ("merger", self.lang["nav_merger"]),
             ("docconv", self.lang["nav_docconv"]),
+            ("about", self.lang["nav_about"]),
         ]
         for icon_key, label in nav_items:
             item = QListWidgetItem(svg_to_icon(icon_key), label)
