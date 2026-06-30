@@ -43,10 +43,10 @@ from PySide6.QtWidgets import (
     QFileDialog, QLineEdit, QComboBox, QSpinBox, QFrame, QProgressBar,
     QMessageBox, QStackedWidget, QSplitter
 )
-from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot
+from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot, QRunnable, QThreadPool
 from PySide6.QtGui import QIcon, QPixmap, QDragEnterEvent, QDragMoveEvent, QDropEvent
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 try:
     import pypdfium2 as pdfium
@@ -204,10 +204,12 @@ LANGUAGES = {
 
 
 # ──────────────────────────────────────────────────────────────────────────
-#  Simple icon helpers (no numpy/opencv — generic colored glyph via Pillow)
+#  Icon helpers — generic fallback glyph (no numpy/opencv, full Pillow)
 # ──────────────────────────────────────────────────────────────────────────
 def make_generic_icon(ext, size=96):
-    """Bikin icon kotak sederhana berdasarkan ekstensi file, full PIL (ringan)."""
+    """Bikin icon kotak sederhana berdasarkan ekstensi file. Dipakai sebagai
+    placeholder sementara sebelum thumbnail asli selesai dirender, dan
+    sebagai fallback kalau file gagal dibaca/di-render."""
     ext = ext.lower().lstrip('.')
     colors = {
         'pdf': (200, 70, 60), 'png': (90, 150, 200), 'jpg': (90, 150, 200),
@@ -226,8 +228,69 @@ def make_generic_icon(ext, size=96):
     return pix
 
 
+def _square_thumbnail_pixmap(pil_img, size=96, bg=(45, 45, 45)):
+    """Cocokkan gambar PIL apa pun ke kanvas persegi (letterbox), full Pillow,
+    tanpa numpy/opencv — aman untuk CPU non-AVX."""
+    pil_img = pil_img.convert('RGB')
+    fitted = ImageOps.contain(pil_img, (size, size))
+    canvas = Image.new('RGB', (size, size), bg)
+    off = ((size - fitted.width) // 2, (size - fitted.height) // 2)
+    canvas.paste(fitted, off)
+    buf = io.BytesIO()
+    canvas.save(buf, format='PNG')
+    pix = QPixmap()
+    pix.loadFromData(buf.getvalue(), 'PNG')
+    return pix
+
+
 # ──────────────────────────────────────────────────────────────────────────
-#  Drag & drop file list (no thumbnail worker thread pool needed — lightweight)
+#  Async thumbnail rendering — pure PIL (images) / pypdfium2 (first PDF page)
+# ──────────────────────────────────────────────────────────────────────────
+class _ThumbnailSignals(QObject):
+    ready = Signal(str, QPixmap)
+
+
+class ThumbnailWorker(QRunnable):
+    """Render satu thumbnail di background thread. Tidak memakai numpy/opencv
+    sama sekali — gambar lewat Pillow, halaman PDF lewat pypdfium2 (keduanya
+    binding ringan tanpa requirement AVX), sehingga aman untuk CPU lama."""
+
+    def __init__(self, file_path, size=96):
+        super().__init__()
+        self.file_path = file_path
+        self.size = size
+        self.signals = _ThumbnailSignals()
+
+    def run(self):
+        ext = os.path.splitext(self.file_path)[1].lower()
+        pix = None
+        try:
+            if ext == '.pdf':
+                if HAS_PDFIUM:
+                    pdf = pdfium.PdfDocument(self.file_path)
+                    if len(pdf) > 0:
+                        page = pdf[0]
+                        # render kecil langsung (scale rendah) biar ringan di CPU lemah
+                        target_px = max(self.size, 150)
+                        w_pt, h_pt = page.get_size()
+                        scale = target_px / max(w_pt, h_pt, 1)
+                        pil_img = page.render(scale=scale).to_pil()
+                        pix = _square_thumbnail_pixmap(pil_img, self.size)
+            else:
+                pil_img = Image.open(self.file_path)
+                pil_img.thumbnail((self.size * 2, self.size * 2))  # decode hemat memori dulu
+                pix = _square_thumbnail_pixmap(pil_img, self.size)
+        except Exception:
+            pix = None
+
+        if pix is None:
+            pix = make_generic_icon(ext, self.size)
+
+        self.signals.ready.emit(self.file_path, pix)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  Drag & drop file list — async real thumbnails via QThreadPool
 # ──────────────────────────────────────────────────────────────────────────
 class FileDropArea(QListWidget):
     files_changed = Signal()
@@ -246,6 +309,12 @@ class FileDropArea(QListWidget):
         self.setWordWrap(True)
         self.setSpacing(10)
         self._icon_cache = {}
+
+        # Batasi jumlah thread biar tetap ringan di CPU low-spec / sedikit core
+        self.thread_pool = QThreadPool()
+        max_threads = max(1, min(4, QThreadPool.globalInstance().maxThreadCount() // 2))
+        self.thread_pool.setMaxThreadCount(max_threads)
+
         self._placeholder_item = None
         self._set_placeholder()
 
@@ -310,8 +379,23 @@ class FileDropArea(QListWidget):
             item.setTextAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
             self.addItem(item)
 
+            # Render thumbnail asli di background — tidak memblokir UI
+            worker = ThumbnailWorker(path, size=96)
+            worker.signals.ready.connect(self._on_thumbnail_ready)
+            self.thread_pool.start(worker)
+
         if valid:
             self.files_changed.emit()
+
+    @Slot(str, QPixmap)
+    def _on_thumbnail_ready(self, file_path, pixmap):
+        for i in range(self.count()):
+            item = self.item(i)
+            if item is self._placeholder_item:
+                continue
+            if item.data(Qt.ItemDataRole.UserRole) == file_path:
+                item.setIcon(QIcon(pixmap))
+                break
 
     def clear_files(self):
         self.clear()
