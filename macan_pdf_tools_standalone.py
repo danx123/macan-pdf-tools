@@ -3,34 +3,30 @@
 """
 Macan PDF Tools — Standalone Edition
 =====================================
-Diekstrak dari macan_converter (PDF Tools page) menjadi aplikasi mandiri.
+Extracted from macan_converter (PDF Tools page) into a standalone application.
 
-Didesain khusus untuk PC/laptop spek rendah & CPU lama yang TIDAK mendukung
-instruksi AVX/AVX2 (mis. prosesor generasi awal Core i3/i5, Celeron, Atom,
-beberapa AMD lawas). Karena itu:
+Specifically designed for low-spec PCs/laptops and older CPUs that DO NOT support AVX/AVX2 instructions (e.g., early-generation Core i3/i5, Celeron, Atom, and some older AMD processors). Therefore:
 
-  - TIDAK menggunakan numpy / opencv (wheel resmi opencv-python & numpy versi
-    baru sering dikompilasi dengan AVX2 dan akan crash "Illegal instruction"
-    di CPU non-AVX).
-  - Semua pemrosesan gambar memakai Pillow (PIL) murni.
-  - Rendering halaman PDF memakai pypdfium2 (binding ke PDFium, tidak butuh AVX).
-  - Manipulasi struktur PDF (merge & kompresi stream) memakai pikepdf (opsional,
-    fallback otomatis ke pypdfium2 murni kalau pikepdf tidak terpasang).
+- DOES NOT use numpy / opencv (the official opencv-python and numpy versions are often compiled with AVX2 and will crash with "Illegal instruction"
+on non-AVX CPUs).
+- All image processing uses pure Pillow (PIL).
+- PDF page rendering uses pypdfium2 (binding to PDFium, no AVX required).
+- PDF structure manipulation (merge & stream compression) uses pikepdf (optional,
+Automatic fallback to pure pypdfium2 if pikepdf is not installed).
 
-Fitur (4 sub-tools, sama seperti page "PDF Tools" di Macan Converter):
-  1. Image to PDF       — gabungkan gambar jadi satu/banyak PDF
-  2. PDF to Image       — ekspor halaman PDF ke PNG/JPG/WEBP
-  3. PDF Merger         — gabungkan banyak PDF + kompresi opsional
-  4. PDF Document Conversion — PDF -> TXT / PDF -> DOCX / PDF -> XLSX
+Features (4 sub-tools, similar to the "PDF Tools" page in Macan Converter):
+1. Image to PDF — merge images into one or multiple PDFs
+2. PDF to Image — export PDF pages to PNG/JPG/WEBP
+3. PDF Merger — merge multiple PDFs with optional compression
+4. PDF Document Conversion — PDF -> TXT / PDF -> DOCX / PDF -> XLSX
 
-Mendukung 2 bahasa: Bahasa Indonesia & English (pilih dari pojok kanan atas).
+Supports 2 languages: Indonesian & English (select from the top right corner).
 
-Dependencies (semua ringan, tanpa AVX requirement):
-    pip install PySide6 Pillow pypdfium2 pikepdf python-docx openpyxl --break-system-packages
+Dependencies (all lightweight, no AVX requirement):
+pip install PySide6 Pillow pypdfium2 pikepdf python-docx openpyxl --break-system-packages
 
-Catatan: pikepdf, python-docx, openpyxl bersifat opsional — fitur terkait
-akan otomatis nonaktif (dengan pesan jelas) jika library tidak terpasang,
-aplikasi tetap berjalan normal untuk fitur lainnya.
+Note: pikepdf, python-docx, and openpyxl are optional — the related features will be automatically disabled (with a clear message) if the libraries are not installed.
+The application will continue to run normally for other features.
 """
 
 import sys
@@ -43,7 +39,7 @@ from PySide6.QtWidgets import (
     QFileDialog, QLineEdit, QComboBox, QSpinBox, QFrame, QProgressBar,
     QMessageBox, QStackedWidget, QSplitter
 )
-from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot, QRunnable, QThreadPool
+from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot, QRunnable, QThreadPool, QSettings
 from PySide6.QtGui import QIcon, QPixmap, QDragEnterEvent, QDragMoveEvent, QDropEvent
 
 from PIL import Image, ImageOps
@@ -73,9 +69,21 @@ except ImportError:
     HAS_OPENPYXL = False
 
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
+ORG_NAME = "MacanAngkasa"
+APP_NAME = "MacanPdfToolsStandalone"
 IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.bmp', '.webp', '.gif']
 PDF_EXT = ['.pdf']
+
+
+def get_app_dir():
+    """Folder tempat script/exe ini berada (aman untuk dev & hasil Nuitka/PyInstaller)."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+LOGO_PATH = os.path.join(get_app_dir(), "logo.png")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -1243,9 +1251,17 @@ class PdfDocConversionPage(BaseToolPage):
 class MacanPdfToolsApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.current_lang_code = "id"
+        icon_path = "icon_pdf.ico"
+        if hasattr(sys, "_MEIPASS"):
+            icon_path = os.path.join(sys._MEIPASS, icon_path)
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        self.settings = QSettings(ORG_NAME, APP_NAME)
+
+        # ── Muat pengaturan tersimpan (bahasa, geometri, posisi window) ──
+        saved_lang = self.settings.value("language", "id")
+        self.current_lang_code = saved_lang if saved_lang in LANGUAGES else "id"
         self.lang = LANGUAGES[self.current_lang_code]
-        self.resize(1100, 760)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -1264,6 +1280,7 @@ class MacanPdfToolsApp(QMainWindow):
         self.lang_combo = QComboBox()
         self.lang_combo.addItems(["Bahasa Indonesia", "English"])
         self.lang_combo.setFixedWidth(160)
+        self.lang_combo.setCurrentIndex(0 if self.current_lang_code == "id" else 1)
         self.lang_combo.currentIndexChanged.connect(self._on_lang_changed)
         top_layout.addWidget(self.lang_combo)
         top_layout.addStretch()
@@ -1297,9 +1314,61 @@ class MacanPdfToolsApp(QMainWindow):
 
         self.nav_list.setCurrentRow(0)
 
+        # ── footer panel dengan logo.png ──
+        self.footer = self._build_footer()
+        root.addWidget(self.footer)
+
         self._apply_stylesheet()
         self._set_window_title()
         self._check_dependencies()
+        self._restore_window_geometry()
+
+    def _build_footer(self):
+        footer = QWidget()
+        footer.setObjectName("footerPanel")
+        footer.setFixedHeight(44)
+        layout = QHBoxLayout(footer)
+        layout.setContentsMargins(12, 4, 12, 4)
+        layout.setSpacing(8)
+
+        self.footer_logo_label = QLabel()
+        self.footer_logo_label.setStyleSheet("background: transparent;")
+        self._load_footer_logo()
+        layout.addWidget(self.footer_logo_label)
+
+        self.footer_text_label = QLabel(f"Macan Angkasa - All Rights Reserved")
+        self.footer_text_label.setStyleSheet("background: transparent; color: #999999; font-size: 8pt;")
+        layout.addWidget(self.footer_text_label)
+
+        layout.addStretch()
+        return footer
+
+    def _load_footer_logo(self):
+        pix = QPixmap(LOGO_PATH)
+        if not pix.isNull():
+            pix = pix.scaledToHeight(32, Qt.TransformationMode.SmoothTransformation)
+            self.footer_logo_label.setPixmap(pix)
+            self.footer_logo_label.setFixedSize(pix.size())
+        else:
+            # logo.png belum ada di folder app — sembunyikan area logo, jangan error
+            self.footer_logo_label.setFixedSize(0, 0)
+
+    def _restore_window_geometry(self):
+        geometry = self.settings.value("window/geometry")
+        if geometry is not None:
+            self.restoreGeometry(geometry)
+        else:
+            self.resize(1100, 760)
+            pos = self.settings.value("window/pos")
+            if pos is not None:
+                self.move(pos)
+
+    def closeEvent(self, event):
+        # Simpan bahasa, geometri (ukuran+state), dan posisi window
+        self.settings.setValue("language", self.current_lang_code)
+        self.settings.setValue("window/geometry", self.saveGeometry())
+        self.settings.setValue("window/pos", self.pos())
+        super().closeEvent(event)
 
     def _populate_nav(self):
         self.nav_list.clear()
@@ -1320,6 +1389,7 @@ class MacanPdfToolsApp(QMainWindow):
     def _on_lang_changed(self, index):
         self.current_lang_code = "id" if index == 0 else "en"
         self.lang = LANGUAGES[self.current_lang_code]
+        self.settings.setValue("language", self.current_lang_code)
 
         current_row = self.nav_list.currentRow()
         self.lang_label.setText(self.lang["lang_label"])
@@ -1353,6 +1423,10 @@ class MacanPdfToolsApp(QMainWindow):
             #topBar {
                 background-color: #2c2c2c;
                 border-bottom: 1px solid #444444;
+            }
+            #footerPanel {
+                background-color: #2c2c2c;
+                border-top: 1px solid #444444;
             }
             #navList {
                 background-color: #333333;
