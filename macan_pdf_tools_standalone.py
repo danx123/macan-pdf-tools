@@ -23,6 +23,8 @@ Fitur (4 sub-tools, sama seperti page "PDF Tools" di Macan Converter):
   3. PDF Merger         — gabungkan banyak PDF + kompresi opsional
   4. PDF Document Conversion — PDF -> TXT / PDF -> DOCX / PDF -> XLSX
 
+Mendukung 2 bahasa: Bahasa Indonesia & English (pilih dari pojok kanan atas).
+
 Dependencies (semua ringan, tanpa AVX requirement):
     pip install PySide6 Pillow pypdfium2 pikepdf python-docx openpyxl --break-system-packages
 
@@ -39,10 +41,10 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QListWidget, QListWidgetItem, QAbstractItemView,
     QFileDialog, QLineEdit, QComboBox, QSpinBox, QFrame, QProgressBar,
-    QMessageBox, QStackedWidget, QSplitter, QTextEdit
+    QMessageBox, QStackedWidget, QSplitter
 )
 from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QDragEnterEvent, QDragMoveEvent, QDropEvent
+from PySide6.QtGui import QIcon, QPixmap, QDragEnterEvent, QDragMoveEvent, QDropEvent
 
 from PIL import Image
 
@@ -71,9 +73,134 @@ except ImportError:
     HAS_OPENPYXL = False
 
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.bmp', '.webp', '.gif']
 PDF_EXT = ['.pdf']
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  Bahasa / Language strings
+# ──────────────────────────────────────────────────────────────────────────
+LANGUAGES = {
+    "id": {
+        "window_title": "Macan PDF Tools — Standalone (v{version})",
+        "nav_img2pdf": "Image to PDF",
+        "nav_pdf2img": "PDF to Image",
+        "nav_merger": "PDF Merger",
+        "nav_docconv": "Konversi Dokumen PDF",
+        "lang_label": "Bahasa:",
+        "add_files_btn": "Tambah File",
+        "clear_btn": "Bersihkan",
+        "output_label": "Output:",
+        "output_placeholder": "Pilih folder output...",
+        "choose_folder_btn": "Pilih Folder",
+        "choose_folder_title": "Pilih Folder Output",
+        "status_ready": "Siap.",
+        "status_stopped": "Dihentikan oleh pengguna.",
+        "start_btn": "Mulai",
+        "stop_btn": "Stop",
+        "options_label": "Opsi",
+        "drop_placeholder": "Seret file ke sini atau klik 'Tambah File'",
+        "error_title": "Error",
+        "done_title": "Selesai",
+        "error_no_output": "Pilih folder output terlebih dahulu.",
+        "dep_missing_title": "Dependency hilang",
+        "dep_missing_body": "Beberapa fitur tidak akan berfungsi:\n\n{items}\n\nInstall dengan:\npip install {pkgs} --break-system-packages",
+
+        # Image to PDF
+        "img2pdf_title": "Image to PDF",
+        "img2pdf_start_btn": "Gabungkan -> PDF",
+        "img2pdf_no_files": "Tambahkan file gambar terlebih dahulu.",
+        "quality_label": "Kualitas:",
+        "qualities": ["Maksimum (100)", "Bagus (95)", "Baik (85)", "Sedang (75)", "Rendah (50)"],
+        "out_mode_label": "Output:",
+        "out_modes": ["Satu PDF untuk semua gambar", "Satu PDF per gambar"],
+        "target_size_label": "Target Ukuran:",
+        "target_size_hint": "0 = otomatis",
+
+        # PDF to Image
+        "pdf2img_title": "PDF to Image",
+        "pdf2img_start_btn": "Konversi -> Gambar",
+        "pdf2img_no_files": "Tambahkan file PDF terlebih dahulu.",
+        "format_label": "Format:",
+        "dpi_label": "Kualitas (DPI):",
+        "dpis": ["Rendah (72 DPI)", "Sedang (150 DPI)", "Baik (200 DPI)", "Tinggi (300 DPI)", "Maksimum (600 DPI)"],
+        "pages_label": "Halaman:",
+        "pages_hint": "Cth: 1,3,5-8 (kosong = semua)",
+
+        # Merger
+        "merger_title": "PDF Merger",
+        "merger_start_btn": "Gabungkan PDF",
+        "merger_no_files": "Tambahkan minimal 2 file PDF.",
+        "merger_qualities": ["Pertahankan asli", "Optimal (85)", "Rendah (60)"],
+        "merger_pikepdf_note": "Catatan: 'pikepdf' tidak terpasang — kompresi tidak\ntersedia, hanya merge struktural (via pypdfium2).",
+
+        # Doc conversion
+        "docconv_start_btn": "Konversi",
+        "docconv_no_files": "Tambahkan file PDF terlebih dahulu.",
+        "convert_to_label": "Konversi ke:",
+        "missing_libs_label": "Belum terpasang: {items}",
+    },
+    "en": {
+        "window_title": "Macan PDF Tools — Standalone (v{version})",
+        "nav_img2pdf": "Image to PDF",
+        "nav_pdf2img": "PDF to Image",
+        "nav_merger": "PDF Merger",
+        "nav_docconv": "PDF Document Conversion",
+        "lang_label": "Language:",
+        "add_files_btn": "Add Files",
+        "clear_btn": "Clear",
+        "output_label": "Output:",
+        "output_placeholder": "Select output folder...",
+        "choose_folder_btn": "Choose Folder",
+        "choose_folder_title": "Select Output Folder",
+        "status_ready": "Ready.",
+        "status_stopped": "Stopped by user.",
+        "start_btn": "Start",
+        "stop_btn": "Stop",
+        "options_label": "Options",
+        "drop_placeholder": "Drag files here or click 'Add Files'",
+        "error_title": "Error",
+        "done_title": "Done",
+        "error_no_output": "Please select an output folder first.",
+        "dep_missing_title": "Missing dependency",
+        "dep_missing_body": "Some features will not work:\n\n{items}\n\nInstall with:\npip install {pkgs} --break-system-packages",
+
+        # Image to PDF
+        "img2pdf_title": "Image to PDF",
+        "img2pdf_start_btn": "Combine -> PDF",
+        "img2pdf_no_files": "Please add image files first.",
+        "quality_label": "Quality:",
+        "qualities": ["Maximum (100)", "Good (95)", "Good (85)", "Medium (75)", "Low (50)"],
+        "out_mode_label": "Output:",
+        "out_modes": ["Single PDF for all images", "One PDF per image"],
+        "target_size_label": "Target Size:",
+        "target_size_hint": "0 = automatic",
+
+        # PDF to Image
+        "pdf2img_title": "PDF to Image",
+        "pdf2img_start_btn": "Convert -> Images",
+        "pdf2img_no_files": "Please add PDF files first.",
+        "format_label": "Format:",
+        "dpi_label": "Quality (DPI):",
+        "dpis": ["Low (72 DPI)", "Medium (150 DPI)", "Good (200 DPI)", "High (300 DPI)", "Maximum (600 DPI)"],
+        "pages_label": "Pages:",
+        "pages_hint": "E.g.: 1,3,5-8 (blank = all)",
+
+        # Merger
+        "merger_title": "PDF Merger",
+        "merger_start_btn": "Merge PDFs",
+        "merger_no_files": "Please add at least 2 PDF files.",
+        "merger_qualities": ["Keep original", "Optimized (85)", "Low (60)"],
+        "merger_pikepdf_note": "Note: 'pikepdf' is not installed — compression is\nunavailable, only structural merge (via pypdfium2).",
+
+        # Doc conversion
+        "docconv_start_btn": "Convert",
+        "docconv_no_files": "Please add PDF files first.",
+        "convert_to_label": "Convert to:",
+        "missing_libs_label": "Not installed: {items}",
+    },
+}
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -99,24 +226,17 @@ def make_generic_icon(ext, size=96):
     return pix
 
 
-def pil_to_qpixmap(pil_img):
-    buf = io.BytesIO()
-    pil_img.save(buf, format='PNG')
-    pix = QPixmap()
-    pix.loadFromData(buf.getvalue(), 'PNG')
-    return pix
-
-
 # ──────────────────────────────────────────────────────────────────────────
 #  Drag & drop file list (no thumbnail worker thread pool needed — lightweight)
 # ──────────────────────────────────────────────────────────────────────────
 class FileDropArea(QListWidget):
     files_changed = Signal()
 
-    def __init__(self, accept_types=None, parent=None):
+    def __init__(self, accept_types=None, lang=None, parent=None):
         super().__init__(parent)
         self.accept_types = accept_types or ['image', 'pdf']
         self.file_paths = []
+        self.lang = lang
 
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DragDropMode.NoDragDrop)
@@ -126,14 +246,20 @@ class FileDropArea(QListWidget):
         self.setWordWrap(True)
         self.setSpacing(10)
         self._icon_cache = {}
+        self._placeholder_item = None
         self._set_placeholder()
 
     def _set_placeholder(self):
-        self._placeholder_item = QListWidgetItem(
-            "Seret file ke sini atau klik 'Tambah File'\n(Drag files here or click 'Add Files')")
+        text = self.lang["drop_placeholder"] if self.lang else "Drag files here or click 'Add Files'"
+        self._placeholder_item = QListWidgetItem(text)
         self._placeholder_item.setFlags(Qt.ItemFlag.NoItemFlags)
         self._placeholder_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.addItem(self._placeholder_item)
+
+    def retranslate(self, lang):
+        self.lang = lang
+        if self.count() == 1 and self.item(0) == self._placeholder_item:
+            self._placeholder_item.setText(lang["drop_placeholder"])
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
@@ -197,7 +323,7 @@ class FileDropArea(QListWidget):
         paths = []
         for i in range(self.count()):
             item = self.item(i)
-            if item != getattr(self, '_placeholder_item', None):
+            if item != self._placeholder_item:
                 paths.append(item.data(Qt.ItemDataRole.UserRole))
         return paths
 
@@ -282,14 +408,14 @@ class PdfToolsWorker(QObject):
         for i, path in enumerate(self.input_paths):
             if not self.is_running:
                 return
-            self.progress_updated.emit(int((i / total) * 85), f"Memproses gambar {i+1}/{total}...")
+            self.progress_updated.emit(int((i / total) * 85), f"Processing image {i+1}/{total}...")
             pil_images.append(Image.open(path).convert('RGB'))
 
         if not pil_images:
-            self.error.emit("Tidak ada gambar.")
+            self.error.emit("No images.")
             return
 
-        self.progress_updated.emit(90, "Menyimpan PDF...")
+        self.progress_updated.emit(90, "Saving PDF...")
         first, rest = pil_images[0], pil_images[1:]
         save_kwargs = {'format': 'PDF', 'save_all': True, 'append_images': rest,
                         'quality': max(20, quality - 10) if target_mb > 0 else quality}
@@ -308,8 +434,8 @@ class PdfToolsWorker(QObject):
                 compressed[0].save(output_file, format='PDF', save_all=True,
                                     append_images=compressed[1:], quality=q2)
 
-        self.progress_updated.emit(100, "Selesai!")
-        self.finished.emit(f"Berhasil! PDF disimpan: {os.path.basename(output_file)}")
+        self.progress_updated.emit(100, "Done!")
+        self.finished.emit(f"OK|PDF saved: {os.path.basename(output_file)}")
 
     def _images_to_multi_pdf(self):
         quality = self._quality_to_jpeg(self.kwargs.get('quality_idx', 2))
@@ -318,7 +444,7 @@ class PdfToolsWorker(QObject):
         for i, path in enumerate(self.input_paths):
             if not self.is_running:
                 return
-            self.progress_updated.emit(int((i / total) * 100), f"Memproses gambar {i+1}/{total}...")
+            self.progress_updated.emit(int((i / total) * 100), f"Processing image {i+1}/{total}...")
             base = os.path.splitext(os.path.basename(path))[0]
             out_file = os.path.join(self.output_path, f"{base}.pdf")
             img = Image.open(path).convert('RGB')
@@ -331,13 +457,13 @@ class PdfToolsWorker(QObject):
                     q = max(20, int(quality * (target_mb / actual_mb) * 0.85))
             img.save(out_file, format='PDF', quality=q)
 
-        self.progress_updated.emit(100, "Selesai!")
-        self.finished.emit(f"Berhasil! {total} file PDF telah dibuat.")
+        self.progress_updated.emit(100, "Done!")
+        self.finished.emit(f"OK|{total} PDF files created.")
 
     # ---- PDF -> Image ----
     def _pdf_to_images(self):
         if not HAS_PDFIUM:
-            self.error.emit("Library 'pypdfium2' belum terpasang.")
+            self.error.emit("'pypdfium2' is not installed.")
             return
         fmt = self.kwargs.get('fmt', 'PNG').lower()
         dpi = self._dpi_from_index(self.kwargs.get('dpi_idx', 2))
@@ -357,7 +483,7 @@ class PdfToolsWorker(QObject):
                     return
                 self.progress_updated.emit(
                     int((j / max(len(pages), 1)) * 100),
-                    f"Mengonversi halaman {j+1}/{len(pages)}...")
+                    f"Converting page {j+1}/{len(pages)}...")
                 pil_img = pdf[page_idx].render(scale=scale).to_pil()
                 out_file = os.path.join(self.output_path, f"{base}_p{page_idx+1}.{fmt}")
                 if fmt in ('jpg', 'jpeg', 'webp'):
@@ -366,8 +492,8 @@ class PdfToolsWorker(QObject):
                     pil_img.save(out_file)
                 total_exported += 1
 
-        self.progress_updated.emit(100, "Selesai!")
-        self.finished.emit(f"Berhasil! {total_exported} gambar diekspor.")
+        self.progress_updated.emit(100, "Done!")
+        self.finished.emit(f"OK|{total_exported} images exported.")
 
     # ---- PDF Merger ----
     @staticmethod
@@ -419,7 +545,7 @@ class PdfToolsWorker(QObject):
         jpeg_quality = jpeg_quality_map.get(quality_idx, None)
 
         total_files = len(self.input_paths)
-        self.progress_updated.emit(2, "Membuka file...")
+        self.progress_updated.emit(2, "Opening files...")
         try:
             merged = pikepdf.Pdf.new()
             for i, path in enumerate(self.input_paths):
@@ -427,7 +553,7 @@ class PdfToolsWorker(QObject):
                     return
                 src = pikepdf.Pdf.open(path)
                 merged.pages.extend(src.pages)
-                self.progress_updated.emit(int(((i + 1) / total_files) * 50), f"Menggabungkan {i+1}/{total_files}...")
+                self.progress_updated.emit(int(((i + 1) / total_files) * 50), f"Merging {i+1}/{total_files}...")
         except Exception as e:
             self.error.emit(f"Merge error: {e}")
             return
@@ -435,20 +561,20 @@ class PdfToolsWorker(QObject):
         if not self.is_running:
             return
 
-        self.progress_updated.emit(55, "Mengoptimalkan...")
+        self.progress_updated.emit(55, "Optimizing...")
         try:
             merged.remove_unreferenced_resources()
         except Exception:
             pass
 
         if jpeg_quality is not None:
-            self.progress_updated.emit(60, "Mengompresi gambar...")
+            self.progress_updated.emit(60, "Recompressing images...")
             try:
                 self._recompress_images_in_pdf(merged, jpeg_quality)
             except Exception:
                 pass
 
-        self.progress_updated.emit(85, "Menyimpan...")
+        self.progress_updated.emit(85, "Saving...")
         try:
             save_opts = dict(compress_streams=True,
                               object_stream_mode=pikepdf.ObjectStreamMode.generate,
@@ -462,7 +588,7 @@ class PdfToolsWorker(QObject):
                 while actual_mb > target_mb and iteration < 3 and self.is_running:
                     iteration += 1
                     q = max(10, int(q * (target_mb / actual_mb) * 0.88))
-                    self.progress_updated.emit(85 + iteration * 4, f"Memperkecil ukuran (q={q})...")
+                    self.progress_updated.emit(85 + iteration * 4, f"Shrinking (q={q})...")
                     try:
                         self._recompress_images_in_pdf(merged, q)
                         merged.save(output_file, **save_opts)
@@ -473,12 +599,12 @@ class PdfToolsWorker(QObject):
             self.error.emit(f"Save error: {e}")
             return
 
-        self.progress_updated.emit(100, "Selesai!")
-        self.finished.emit(f"Berhasil! PDF gabungan disimpan: {os.path.basename(output_file)}")
+        self.progress_updated.emit(100, "Done!")
+        self.finished.emit(f"OK|Merged PDF saved: {os.path.basename(output_file)}")
 
     def _merge_pdfs_fallback(self, output_file):
         if not HAS_PDFIUM:
-            self.error.emit("Library 'pypdfium2' atau 'pikepdf' belum terpasang.")
+            self.error.emit("'pypdfium2' or 'pikepdf' is not installed.")
             return
         merged = pdfium.PdfDocument.new()
         docs, total_pages = [], 0
@@ -492,22 +618,22 @@ class PdfToolsWorker(QObject):
                 return
             merged.import_pages(doc, list(range(len(doc))))
             done += len(doc)
-            self.progress_updated.emit(int((done / max(total_pages, 1)) * 95), "Menggabungkan...")
+            self.progress_updated.emit(int((done / max(total_pages, 1)) * 95), "Merging...")
         merged.save(output_file)
-        self.progress_updated.emit(100, "Selesai!")
-        self.finished.emit(f"Berhasil! PDF gabungan disimpan: {os.path.basename(output_file)}")
+        self.progress_updated.emit(100, "Done!")
+        self.finished.emit(f"OK|Merged PDF saved: {os.path.basename(output_file)}")
 
     # ---- PDF Document Conversion ----
     def _pdf_to_txt(self):
         if not HAS_PDFIUM:
-            self.error.emit("Library 'pypdfium2' belum terpasang.")
+            self.error.emit("'pypdfium2' is not installed.")
             return
         total = len(self.input_paths)
         done_files = []
         for i, pdf_path in enumerate(self.input_paths):
             if not self.is_running:
                 return
-            self.progress_updated.emit(int((i / total) * 95), f"Mengekstrak teks {i+1}/{total}...")
+            self.progress_updated.emit(int((i / total) * 95), f"Extracting text {i+1}/{total}...")
             pdf = pdfium.PdfDocument(pdf_path)
             text_parts = []
             for page in pdf:
@@ -518,15 +644,15 @@ class PdfToolsWorker(QObject):
             with open(out_file, 'w', encoding='utf-8') as f:
                 f.write("\n\n".join(text_parts))
             done_files.append(out_file)
-        self.progress_updated.emit(100, "Selesai!")
-        self.finished.emit(f"Berhasil! {len(done_files)} file TXT dibuat.")
+        self.progress_updated.emit(100, "Done!")
+        self.finished.emit(f"OK|{len(done_files)} TXT files created.")
 
     def _pdf_to_docx(self):
         if not HAS_PDFIUM:
-            self.error.emit("Library 'pypdfium2' belum terpasang.")
+            self.error.emit("'pypdfium2' is not installed.")
             return
         if not HAS_DOCX:
-            self.error.emit("Library 'python-docx' belum terpasang. Install: pip install python-docx --break-system-packages")
+            self.error.emit("'python-docx' is not installed. Install: pip install python-docx --break-system-packages")
             return
         import docx
         total = len(self.input_paths)
@@ -534,7 +660,7 @@ class PdfToolsWorker(QObject):
         for i, pdf_path in enumerate(self.input_paths):
             if not self.is_running:
                 return
-            self.progress_updated.emit(int((i / total) * 95), f"Mengonversi {i+1}/{total}...")
+            self.progress_updated.emit(int((i / total) * 95), f"Converting {i+1}/{total}...")
             pdf = pdfium.PdfDocument(pdf_path)
             document = docx.Document()
             for p_idx, page in enumerate(pdf):
@@ -549,15 +675,15 @@ class PdfToolsWorker(QObject):
             out_file = os.path.join(self.output_path, f"{base}.docx")
             document.save(out_file)
             done_files.append(out_file)
-        self.progress_updated.emit(100, "Selesai!")
-        self.finished.emit(f"Berhasil! {len(done_files)} file DOCX dibuat.")
+        self.progress_updated.emit(100, "Done!")
+        self.finished.emit(f"OK|{len(done_files)} DOCX files created.")
 
     def _pdf_to_xlsx(self):
         if not HAS_PDFIUM:
-            self.error.emit("Library 'pypdfium2' belum terpasang.")
+            self.error.emit("'pypdfium2' is not installed.")
             return
         if not HAS_OPENPYXL:
-            self.error.emit("Library 'openpyxl' belum terpasang. Install: pip install openpyxl --break-system-packages")
+            self.error.emit("'openpyxl' is not installed. Install: pip install openpyxl --break-system-packages")
             return
         import openpyxl
         total = len(self.input_paths)
@@ -565,7 +691,7 @@ class PdfToolsWorker(QObject):
         for i, pdf_path in enumerate(self.input_paths):
             if not self.is_running:
                 return
-            self.progress_updated.emit(int((i / total) * 95), f"Mengonversi {i+1}/{total}...")
+            self.progress_updated.emit(int((i / total) * 95), f"Converting {i+1}/{total}...")
             pdf = pdfium.PdfDocument(pdf_path)
             wb = openpyxl.Workbook()
             ws = wb.active
@@ -582,29 +708,37 @@ class PdfToolsWorker(QObject):
             out_file = os.path.join(self.output_path, f"{base}.xlsx")
             wb.save(out_file)
             done_files.append(out_file)
-        self.progress_updated.emit(100, "Selesai!")
-        self.finished.emit(f"Berhasil! {len(done_files)} file XLSX dibuat.")
+        self.progress_updated.emit(100, "Done!")
+        self.finished.emit(f"OK|{len(done_files)} XLSX files created.")
 
 
 # ──────────────────────────────────────────────────────────────────────────
 #  Output folder picker (reusable row widget)
 # ──────────────────────────────────────────────────────────────────────────
 class OutputFolderRow(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, lang, parent=None):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        self.output_label = QLabel(lang["output_label"])
         self.path_edit = QLineEdit()
         self.path_edit.setReadOnly(True)
-        self.path_edit.setPlaceholderText("Pilih folder output...")
-        browse_btn = QPushButton("Pilih Folder")
-        browse_btn.clicked.connect(self._browse)
-        layout.addWidget(QLabel("Output:"))
+        self.path_edit.setPlaceholderText(lang["output_placeholder"])
+        self.browse_btn = QPushButton(lang["choose_folder_btn"])
+        self.browse_btn.clicked.connect(self._browse)
+        layout.addWidget(self.output_label)
         layout.addWidget(self.path_edit, 1)
-        layout.addWidget(browse_btn)
+        layout.addWidget(self.browse_btn)
+        self.lang = lang
+
+    def retranslate(self, lang):
+        self.lang = lang
+        self.output_label.setText(lang["output_label"])
+        self.path_edit.setPlaceholderText(lang["output_placeholder"])
+        self.browse_btn.setText(lang["choose_folder_btn"])
 
     def _browse(self):
-        folder = QFileDialog.getExistingDirectory(self, "Pilih Folder Output")
+        folder = QFileDialog.getExistingDirectory(self, self.lang["choose_folder_title"])
         if folder:
             self.path_edit.setText(folder)
 
@@ -616,10 +750,12 @@ class OutputFolderRow(QWidget):
 #  Base page: drop area + output + progress + start/stop (shared scaffolding)
 # ──────────────────────────────────────────────────────────────────────────
 class BaseToolPage(QWidget):
-    def __init__(self, title, accept_types, parent=None):
+    def __init__(self, title_key, accept_types, lang, parent=None):
         super().__init__(parent)
         self.thread = None
         self.worker = None
+        self.lang = lang
+        self.title_key = title_key
 
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -633,39 +769,40 @@ class BaseToolPage(QWidget):
         main_layout.setContentsMargins(15, 15, 15, 15)
         main_layout.setSpacing(8)
 
-        title_label = QLabel(f"<b>{title}</b>")
-        title_label.setStyleSheet("font-size: 13pt;")
-        main_layout.addWidget(title_label)
+        self.title_label = QLabel(f"<b>{lang[title_key]}</b>")
+        self.title_label.setStyleSheet("font-size: 13pt; background: transparent;")
+        main_layout.addWidget(self.title_label)
 
         btn_row = QHBoxLayout()
-        add_btn = QPushButton("Tambah File")
-        add_btn.clicked.connect(self._browse_files)
-        clear_btn = QPushButton("Bersihkan")
-        clear_btn.clicked.connect(self._clear_files)
-        btn_row.addWidget(add_btn)
-        btn_row.addWidget(clear_btn)
+        self.add_btn = QPushButton(lang["add_files_btn"])
+        self.add_btn.clicked.connect(self._browse_files)
+        self.clear_btn = QPushButton(lang["clear_btn"])
+        self.clear_btn.clicked.connect(self._clear_files)
+        btn_row.addWidget(self.add_btn)
+        btn_row.addWidget(self.clear_btn)
         btn_row.addStretch()
         main_layout.addLayout(btn_row)
 
         self.accept_types = accept_types
-        self.drop_area = FileDropArea(accept_types=accept_types)
+        self.drop_area = FileDropArea(accept_types=accept_types, lang=lang)
         main_layout.addWidget(self.drop_area, 1)
 
-        self.output_row = OutputFolderRow()
+        self.output_row = OutputFolderRow(lang)
         main_layout.addWidget(self.output_row)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         main_layout.addWidget(self.progress_bar)
 
-        self.status_label = QLabel("Siap.")
+        self.status_label = QLabel(lang["status_ready"])
+        self.status_label.setStyleSheet("background: transparent;")
         main_layout.addWidget(self.status_label)
 
         action_row = QHBoxLayout()
-        self.start_btn = QPushButton("Mulai")
+        self.start_btn = QPushButton(lang["start_btn"])
         self.start_btn.setObjectName("startButton")
         self.start_btn.clicked.connect(self._on_start_clicked)
-        self.stop_btn = QPushButton("Stop")
+        self.stop_btn = QPushButton(lang["stop_btn"])
         self.stop_btn.setEnabled(False)
         self.stop_btn.clicked.connect(self._on_stop_clicked)
         action_row.addWidget(self.start_btn)
@@ -684,12 +821,31 @@ class BaseToolPage(QWidget):
         splitter.addWidget(self.sidebar)
         splitter.setSizes([600, 280])
 
-        self.build_options(self.sidebar_layout)
+        self.options_label = QLabel(f"<b>{lang['options_label']}</b>")
+        self.options_label.setStyleSheet("background: transparent;")
+        self.sidebar_layout.addWidget(self.options_label)
+
+        self.build_options(self.sidebar_layout, lang)
         self.sidebar_layout.addStretch()
 
     # subclasses override this to add their option widgets
-    def build_options(self, layout):
+    def build_options(self, layout, lang):
         pass
+
+    def retranslate_options(self, lang):
+        pass
+
+    def retranslate(self, lang):
+        self.lang = lang
+        self.title_label.setText(f"<b>{lang[self.title_key]}</b>")
+        self.add_btn.setText(lang["add_files_btn"])
+        self.clear_btn.setText(lang["clear_btn"])
+        self.drop_area.retranslate(lang)
+        self.output_row.retranslate(lang)
+        self.status_label.setText(lang["status_ready"])
+        self.stop_btn.setText(lang["stop_btn"])
+        self.options_label.setText(f"<b>{lang['options_label']}</b>")
+        self.retranslate_options(lang)
 
     def _browse_files(self):
         filters = []
@@ -698,7 +854,7 @@ class BaseToolPage(QWidget):
         if 'pdf' in self.accept_types:
             filters.append("*.pdf")
         filter_str = "Files (" + " ".join(filters) + ")"
-        files, _ = QFileDialog.getOpenFileNames(self, "Pilih File", "", filter_str)
+        files, _ = QFileDialog.getOpenFileNames(self, self.lang["add_files_btn"], "", filter_str)
         if files:
             self.drop_area.add_files(files)
 
@@ -712,7 +868,7 @@ class BaseToolPage(QWidget):
     def _validate_output(self):
         out = self.output_row.get_path()
         if not out or not os.path.isdir(out):
-            QMessageBox.warning(self, "Error", "Pilih folder output terlebih dahulu.")
+            QMessageBox.warning(self, self.lang["error_title"], self.lang["error_no_output"])
             return None
         return out
 
@@ -734,7 +890,7 @@ class BaseToolPage(QWidget):
     def _on_stop_clicked(self):
         if self.worker:
             self.worker.stop()
-        self.status_label.setText("Dihentikan oleh pengguna.")
+        self.status_label.setText(self.lang["status_stopped"])
         self._cleanup_thread()
 
     @Slot(int, str)
@@ -744,15 +900,17 @@ class BaseToolPage(QWidget):
 
     @Slot(str)
     def _on_finished(self, message):
+        # message format "OK|detail text"
+        detail = message.split("|", 1)[1] if "|" in message else message
         self.progress_bar.setValue(100)
-        self.status_label.setText(message)
-        QMessageBox.information(self, "Selesai", message)
+        self.status_label.setText(detail)
+        QMessageBox.information(self, self.lang["done_title"], detail)
         self._cleanup_thread()
 
     @Slot(str)
     def _on_error(self, message):
         self.status_label.setText(message)
-        QMessageBox.critical(self, "Error", message)
+        QMessageBox.critical(self, self.lang["error_title"], message)
         self._cleanup_thread()
 
     def _cleanup_thread(self):
@@ -769,39 +927,51 @@ class BaseToolPage(QWidget):
 #  4 sub-tool pages
 # ──────────────────────────────────────────────────────────────────────────
 class ImageToPdfPage(BaseToolPage):
-    def __init__(self, parent=None):
-        super().__init__("Image to PDF", ['image'], parent)
-        self.start_btn.setText("Gabungkan -> PDF")
+    def __init__(self, lang, parent=None):
+        super().__init__("img2pdf_title", ['image'], lang, parent)
+        self.start_btn.setText(lang["img2pdf_start_btn"])
 
-    def build_options(self, layout):
-        layout.addWidget(QLabel("<b>Opsi</b>"))
+    def build_options(self, layout, lang):
         grid = QGridLayout(); grid.setSpacing(6)
         grid.setColumnMinimumWidth(0, 110); grid.setColumnStretch(1, 1)
 
-        grid.addWidget(QLabel("Kualitas:"), 0, 0)
+        self.quality_label = QLabel(lang["quality_label"])
+        grid.addWidget(self.quality_label, 0, 0)
         self.quality_combo = QComboBox()
-        self.quality_combo.addItems(["Maksimum (100)", "Bagus (95)", "Baik (85)", "Sedang (75)", "Rendah (50)"])
+        self.quality_combo.addItems(lang["qualities"])
         self.quality_combo.setCurrentIndex(2)
         grid.addWidget(self.quality_combo, 0, 1)
 
-        grid.addWidget(QLabel("Output:"), 1, 0)
+        self.out_mode_label = QLabel(lang["out_mode_label"])
+        grid.addWidget(self.out_mode_label, 1, 0)
         self.output_combo = QComboBox()
-        self.output_combo.addItems(["Satu PDF untuk semua gambar", "Satu PDF per gambar"])
+        self.output_combo.addItems(lang["out_modes"])
         grid.addWidget(self.output_combo, 1, 1)
 
-        grid.addWidget(QLabel("Target Ukuran:"), 2, 0)
+        self.target_size_label = QLabel(lang["target_size_label"])
+        grid.addWidget(self.target_size_label, 2, 0)
         self.target_spin = QSpinBox()
         self.target_spin.setRange(0, 9999)
         self.target_spin.setSuffix(" MB")
-        self.target_spin.setToolTip("0 = otomatis")
+        self.target_spin.setToolTip(lang["target_size_hint"])
         grid.addWidget(self.target_spin, 2, 1)
 
         layout.addLayout(grid)
 
+    def retranslate_options(self, lang):
+        self.start_btn.setText(lang["img2pdf_start_btn"])
+        self.quality_label.setText(lang["quality_label"])
+        self.out_mode_label.setText(lang["out_mode_label"])
+        self.target_size_label.setText(lang["target_size_label"])
+        self.target_spin.setToolTip(lang["target_size_hint"])
+        idx_q, idx_o = self.quality_combo.currentIndex(), self.output_combo.currentIndex()
+        self.quality_combo.clear(); self.quality_combo.addItems(lang["qualities"]); self.quality_combo.setCurrentIndex(idx_q)
+        self.output_combo.clear(); self.output_combo.addItems(lang["out_modes"]); self.output_combo.setCurrentIndex(idx_o)
+
     def _on_start_clicked(self):
         img_paths = self._filtered_paths(IMAGE_EXT)
         if not img_paths:
-            QMessageBox.warning(self, "Error", "Tambahkan file gambar terlebih dahulu.")
+            QMessageBox.warning(self, self.lang["error_title"], self.lang["img2pdf_no_files"])
             return
         out = self._validate_output()
         if not out:
@@ -817,37 +987,48 @@ class ImageToPdfPage(BaseToolPage):
 
 
 class PdfToImagePage(BaseToolPage):
-    def __init__(self, parent=None):
-        super().__init__("PDF to Image", ['pdf'], parent)
-        self.start_btn.setText("Konversi -> Gambar")
+    def __init__(self, lang, parent=None):
+        super().__init__("pdf2img_title", ['pdf'], lang, parent)
+        self.start_btn.setText(lang["pdf2img_start_btn"])
 
-    def build_options(self, layout):
-        layout.addWidget(QLabel("<b>Opsi</b>"))
+    def build_options(self, layout, lang):
         grid = QGridLayout(); grid.setSpacing(6)
         grid.setColumnMinimumWidth(0, 110); grid.setColumnStretch(1, 1)
 
-        grid.addWidget(QLabel("Format:"), 0, 0)
+        self.format_label = QLabel(lang["format_label"])
+        grid.addWidget(self.format_label, 0, 0)
         self.format_combo = QComboBox()
         self.format_combo.addItems(["PNG", "JPG", "WEBP"])
         grid.addWidget(self.format_combo, 0, 1)
 
-        grid.addWidget(QLabel("Kualitas (DPI):"), 1, 0)
+        self.dpi_label = QLabel(lang["dpi_label"])
+        grid.addWidget(self.dpi_label, 1, 0)
         self.dpi_combo = QComboBox()
-        self.dpi_combo.addItems(["Rendah (72 DPI)", "Sedang (150 DPI)", "Baik (200 DPI)", "Tinggi (300 DPI)", "Maksimum (600 DPI)"])
+        self.dpi_combo.addItems(lang["dpis"])
         self.dpi_combo.setCurrentIndex(2)
         grid.addWidget(self.dpi_combo, 1, 1)
 
-        grid.addWidget(QLabel("Halaman:"), 2, 0)
+        self.pages_label = QLabel(lang["pages_label"])
+        grid.addWidget(self.pages_label, 2, 0)
         self.pages_edit = QLineEdit()
-        self.pages_edit.setPlaceholderText("Cth: 1,3,5-8 (kosong = semua)")
+        self.pages_edit.setPlaceholderText(lang["pages_hint"])
         grid.addWidget(self.pages_edit, 2, 1)
 
         layout.addLayout(grid)
 
+    def retranslate_options(self, lang):
+        self.start_btn.setText(lang["pdf2img_start_btn"])
+        self.format_label.setText(lang["format_label"])
+        self.dpi_label.setText(lang["dpi_label"])
+        self.pages_label.setText(lang["pages_label"])
+        self.pages_edit.setPlaceholderText(lang["pages_hint"])
+        idx_d = self.dpi_combo.currentIndex()
+        self.dpi_combo.clear(); self.dpi_combo.addItems(lang["dpis"]); self.dpi_combo.setCurrentIndex(idx_d)
+
     def _on_start_clicked(self):
         pdf_paths = self._filtered_paths(PDF_EXT)
         if not pdf_paths:
-            QMessageBox.warning(self, "Error", "Tambahkan file PDF terlebih dahulu.")
+            QMessageBox.warning(self, self.lang["error_title"], self.lang["pdf2img_no_files"])
             return
         out = self._validate_output()
         if not out:
@@ -861,38 +1042,50 @@ class PdfToImagePage(BaseToolPage):
 
 
 class PdfMergerPage(BaseToolPage):
-    def __init__(self, parent=None):
-        super().__init__("PDF Merger", ['pdf'], parent)
-        self.start_btn.setText("Gabungkan PDF")
+    def __init__(self, lang, parent=None):
+        super().__init__("merger_title", ['pdf'], lang, parent)
+        self.start_btn.setText(lang["merger_start_btn"])
 
-    def build_options(self, layout):
-        layout.addWidget(QLabel("<b>Opsi</b>"))
+    def build_options(self, layout, lang):
         grid = QGridLayout(); grid.setSpacing(6)
         grid.setColumnMinimumWidth(0, 110); grid.setColumnStretch(1, 1)
 
-        grid.addWidget(QLabel("Kualitas Gambar:"), 0, 0)
+        self.quality_label = QLabel(lang["quality_label"])
+        grid.addWidget(self.quality_label, 0, 0)
         self.quality_combo = QComboBox()
-        self.quality_combo.addItems(["Pertahankan asli", "Optimal (85)", "Rendah (60)"])
+        self.quality_combo.addItems(lang["merger_qualities"])
         grid.addWidget(self.quality_combo, 0, 1)
 
-        grid.addWidget(QLabel("Target Ukuran:"), 1, 0)
+        self.target_size_label = QLabel(lang["target_size_label"])
+        grid.addWidget(self.target_size_label, 1, 0)
         self.target_spin = QSpinBox()
         self.target_spin.setRange(0, 9999)
         self.target_spin.setSuffix(" MB")
-        self.target_spin.setToolTip("0 = otomatis")
+        self.target_spin.setToolTip(lang["target_size_hint"])
         grid.addWidget(self.target_spin, 1, 1)
 
         layout.addLayout(grid)
 
+        self.pikepdf_note = None
         if not HAS_PIKEPDF:
-            note = QLabel("Catatan: 'pikepdf' tidak terpasang — kompresi tidak\ntersedia, hanya merge struktural (via pypdfium2).")
-            note.setStyleSheet("color: #d08770; font-size: 8pt;")
-            layout.addWidget(note)
+            self.pikepdf_note = QLabel(lang["merger_pikepdf_note"])
+            self.pikepdf_note.setStyleSheet("color: #d08770; font-size: 8pt; background: transparent;")
+            layout.addWidget(self.pikepdf_note)
+
+    def retranslate_options(self, lang):
+        self.start_btn.setText(lang["merger_start_btn"])
+        self.quality_label.setText(lang["quality_label"])
+        self.target_size_label.setText(lang["target_size_label"])
+        self.target_spin.setToolTip(lang["target_size_hint"])
+        idx_q = self.quality_combo.currentIndex()
+        self.quality_combo.clear(); self.quality_combo.addItems(lang["merger_qualities"]); self.quality_combo.setCurrentIndex(idx_q)
+        if self.pikepdf_note:
+            self.pikepdf_note.setText(lang["merger_pikepdf_note"])
 
     def _on_start_clicked(self):
         pdf_paths = self._filtered_paths(PDF_EXT)
         if len(pdf_paths) < 2:
-            QMessageBox.warning(self, "Error", "Tambahkan minimal 2 file PDF.")
+            QMessageBox.warning(self, self.lang["error_title"], self.lang["merger_no_files"])
             return
         out = self._validate_output()
         if not out:
@@ -906,16 +1099,16 @@ class PdfMergerPage(BaseToolPage):
 
 
 class PdfDocConversionPage(BaseToolPage):
-    def __init__(self, parent=None):
-        super().__init__("PDF Document Conversion", ['pdf'], parent)
-        self.start_btn.setText("Konversi")
+    def __init__(self, lang, parent=None):
+        super().__init__("nav_docconv", ['pdf'], lang, parent)
+        self.start_btn.setText(lang["docconv_start_btn"])
 
-    def build_options(self, layout):
-        layout.addWidget(QLabel("<b>Opsi</b>"))
+    def build_options(self, layout, lang):
         grid = QGridLayout(); grid.setSpacing(6)
         grid.setColumnMinimumWidth(0, 110); grid.setColumnStretch(1, 1)
 
-        grid.addWidget(QLabel("Konversi ke:"), 0, 0)
+        self.convert_to_label = QLabel(lang["convert_to_label"])
+        grid.addWidget(self.convert_to_label, 0, 0)
         self.target_combo = QComboBox()
         items = ["TXT"]
         if HAS_DOCX:
@@ -927,21 +1120,29 @@ class PdfDocConversionPage(BaseToolPage):
 
         layout.addLayout(grid)
 
+        self.missing_note = None
         missing = []
         if not HAS_DOCX:
-            missing.append("python-docx (untuk DOCX)")
+            missing.append("python-docx (DOCX)")
         if not HAS_OPENPYXL:
-            missing.append("openpyxl (untuk XLSX)")
+            missing.append("openpyxl (XLSX)")
         if missing:
-            note = QLabel("Belum terpasang: " + ", ".join(missing))
-            note.setStyleSheet("color: #d08770; font-size: 8pt;")
-            note.setWordWrap(True)
-            layout.addWidget(note)
+            self.missing_note = QLabel(lang["missing_libs_label"].format(items=", ".join(missing)))
+            self.missing_note.setStyleSheet("color: #d08770; font-size: 8pt; background: transparent;")
+            self.missing_note.setWordWrap(True)
+            layout.addWidget(self.missing_note)
+        self._missing_items = missing
+
+    def retranslate_options(self, lang):
+        self.start_btn.setText(lang["docconv_start_btn"])
+        self.convert_to_label.setText(lang["convert_to_label"])
+        if self.missing_note:
+            self.missing_note.setText(lang["missing_libs_label"].format(items=", ".join(self._missing_items)))
 
     def _on_start_clicked(self):
         pdf_paths = self._filtered_paths(PDF_EXT)
         if not pdf_paths:
-            QMessageBox.warning(self, "Error", "Tambahkan file PDF terlebih dahulu.")
+            QMessageBox.warning(self, self.lang["error_title"], self.lang["docconv_no_files"])
             return
         out = self._validate_output()
         if not out:
@@ -958,54 +1159,101 @@ class PdfDocConversionPage(BaseToolPage):
 class MacanPdfToolsApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"Macan PDF Tools — Standalone (v{APP_VERSION})")
+        self.current_lang_code = "id"
+        self.lang = LANGUAGES[self.current_lang_code]
         self.resize(1100, 760)
 
         central = QWidget()
         self.setCentralWidget(central)
-        root = QHBoxLayout(central)
+        root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
+
+        # ── top bar: language switcher ──
+        top_bar = QWidget()
+        top_bar.setObjectName("topBar")
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(12, 6, 12, 6)
+        self.lang_label = QLabel(self.lang["lang_label"])
+        self.lang_label.setStyleSheet("background: transparent;")
+        top_layout.addWidget(self.lang_label)
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItems(["Bahasa Indonesia", "English"])
+        self.lang_combo.setFixedWidth(160)
+        self.lang_combo.currentIndexChanged.connect(self._on_lang_changed)
+        top_layout.addWidget(self.lang_combo)
+        top_layout.addStretch()
+        root.addWidget(top_bar)
+
+        body = QWidget()
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
+        root.addWidget(body, 1)
 
         # left nav
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
         self.nav_list.setFixedWidth(210)
-        self.nav_list.addItems([
-            "Image to PDF",
-            "PDF to Image",
-            "PDF Merger",
-            "PDF Document Conversion",
-        ])
+        self._populate_nav()
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
-        root.addWidget(self.nav_list)
+        body_layout.addWidget(self.nav_list)
 
         # stacked pages
         self.stack = QStackedWidget()
-        self.stack.addWidget(ImageToPdfPage())
-        self.stack.addWidget(PdfToImagePage())
-        self.stack.addWidget(PdfMergerPage())
-        self.stack.addWidget(PdfDocConversionPage())
-        root.addWidget(self.stack, 1)
+        self.pages = [
+            ImageToPdfPage(self.lang),
+            PdfToImagePage(self.lang),
+            PdfMergerPage(self.lang),
+            PdfDocConversionPage(self.lang),
+        ]
+        for p in self.pages:
+            self.stack.addWidget(p)
+        body_layout.addWidget(self.stack, 1)
 
         self.nav_list.setCurrentRow(0)
 
         self._apply_stylesheet()
+        self._set_window_title()
         self._check_dependencies()
+
+    def _populate_nav(self):
+        self.nav_list.clear()
+        self.nav_list.addItems([
+            self.lang["nav_img2pdf"],
+            self.lang["nav_pdf2img"],
+            self.lang["nav_merger"],
+            self.lang["nav_docconv"],
+        ])
+
+    def _set_window_title(self):
+        self.setWindowTitle(self.lang["window_title"].format(version=APP_VERSION))
 
     def _on_nav_changed(self, index):
         if index >= 0:
             self.stack.setCurrentIndex(index)
 
+    def _on_lang_changed(self, index):
+        self.current_lang_code = "id" if index == 0 else "en"
+        self.lang = LANGUAGES[self.current_lang_code]
+
+        current_row = self.nav_list.currentRow()
+        self.lang_label.setText(self.lang["lang_label"])
+        self._populate_nav()
+        self.nav_list.setCurrentRow(current_row)
+        self._set_window_title()
+
+        for p in self.pages:
+            p.retranslate(self.lang)
+
     def _check_dependencies(self):
         missing = []
         if not HAS_PDFIUM:
-            missing.append("pypdfium2 (WAJIB untuk PDF to Image / Merger / Document Conversion)")
+            missing.append("pypdfium2")
         if missing:
-            QMessageBox.warning(self, "Dependency hilang",
-                                 "Beberapa fitur tidak akan berfungsi:\n\n" + "\n".join(missing) +
-                                 "\n\nInstall dengan:\npip install " +
-                                 " ".join(m.split(" ")[0] for m in missing) + " --break-system-packages")
+            QMessageBox.warning(
+                self, self.lang["dep_missing_title"],
+                self.lang["dep_missing_body"].format(items="\n".join(missing), pkgs=" ".join(missing)))
 
     def _apply_stylesheet(self):
         self.setStyleSheet("""
@@ -1014,7 +1262,14 @@ class MacanPdfToolsApp(QMainWindow):
                 color: #E0E0E0;
                 font-family: Segoe UI, sans-serif;
             }
-            QLabel { font-size: 10pt; }
+            QLabel {
+                font-size: 10pt;
+                background: transparent;
+            }
+            #topBar {
+                background-color: #2c2c2c;
+                border-bottom: 1px solid #444444;
+            }
             #navList {
                 background-color: #333333;
                 border: none;
@@ -1023,6 +1278,7 @@ class MacanPdfToolsApp(QMainWindow):
             #navList::item {
                 padding: 12px 10px;
                 border-bottom: 1px solid #3a3a3a;
+                background: transparent;
             }
             #navList::item:selected {
                 background-color: #5A5A5A;
