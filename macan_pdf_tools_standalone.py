@@ -39,8 +39,9 @@ from PySide6.QtWidgets import (
     QFileDialog, QLineEdit, QComboBox, QSpinBox, QFrame, QProgressBar,
     QMessageBox, QStackedWidget, QSplitter
 )
-from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot, QRunnable, QThreadPool, QSettings
-from PySide6.QtGui import QIcon, QPixmap, QDragEnterEvent, QDragMoveEvent, QDropEvent
+from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot, QRunnable, QThreadPool, QSettings, QByteArray
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QDragEnterEvent, QDragMoveEvent, QDropEvent
+from PySide6.QtSvg import QSvgRenderer
 
 from PIL import Image, ImageOps
 
@@ -209,6 +210,70 @@ LANGUAGES = {
         "missing_libs_label": "Not installed: {items}",
     },
 }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  SVG icons — kategori navigasi sidebar (vector, ringan, scalable, no AVX)
+# ──────────────────────────────────────────────────────────────────────────
+NAV_SVG_ICONS = {
+    # Image to PDF — gambar dengan panah ke dokumen
+    "img2pdf": """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+             stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="11" height="9" rx="1.2"/>
+            <circle cx="5.5" cy="7.5" r="1.1"/>
+            <path d="M2.8 12.2l3-3.2 2 2 2.7-3 2.5 3"/>
+            <path d="M15.5 8.5h3.5a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5v-3"/>
+            <path d="M16 12.5h4M16 15h4M16 17.5h2.5"/>
+        </svg>""",
+
+    # PDF to Image — dokumen dengan panah ke gambar
+    "pdf2img": """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+             stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 2.5h6.5L15 6v9.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15.5z"/>
+            <path d="M11.5 2.5V6H15"/>
+            <path d="M6.7 9.8h5.5M6.7 12h4"/>
+            <rect x="10.5" y="13.5" width="11" height="8" rx="1.2"/>
+            <circle cx="13.6" cy="16.4" r="1"/>
+            <path d="M11.3 20.5l2.6-2.7 1.7 1.7 2.3-2.5 2.6 2.5"/>
+        </svg>""",
+
+    # PDF Merger — dua dokumen menyatu jadi satu
+    "merger": """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+             stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3h6l3 3v9a1.2 1.2 0 0 1-1.2 1.2H3.2A1.2 1.2 0 0 1 2 15V4.2A1.2 1.2 0 0 1 3 3z"/>
+            <path d="M9 3v3h3"/>
+            <path d="M13 8h6l3 3v9a1.2 1.2 0 0 1-1.2 1.2h-7.6A1.2 1.2 0 0 1 12 20V9.2A1.2 1.2 0 0 1 13.2 8z"/>
+            <path d="M19 8v3h3"/>
+            <path d="M10.5 12.3l3 3-3 3" stroke-width="2"/>
+        </svg>""",
+
+    # PDF Document Conversion — dokumen dengan panah refresh/exchange
+    "docconv": """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+             stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 2.5h6.5L15 6v15.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 21.5z"/>
+            <path d="M11.5 2.5V6H15"/>
+            <path d="M6.8 13h6.4M6.8 15.3h6.4M6.8 17.6h4"/>
+            <path d="M16 9.8a3.6 3.6 0 0 1 5.8-1.1M22 7.5v2.4h-2.4"/>
+            <path d="M22.2 12.4a3.6 3.6 0 0 1-5.8 1.1M16 14.7v-2.4h2.4"/>
+        </svg>""",
+}
+
+
+def svg_to_icon(svg_key, color="#C8C8C8", size=20):
+    """Render salah satu NAV_SVG_ICONS jadi QIcon. Pure Qt SVG rendering
+    (QtSvg, sudah satu paket dengan PySide6) — tidak butuh library tambahan."""
+    svg_str = NAV_SVG_ICONS[svg_key].format(color=color)
+    pix = QPixmap(size, size)
+    pix.fill(Qt.GlobalColor.transparent)
+    renderer = QSvgRenderer(QByteArray(svg_str.encode("utf-8")))
+    painter = QPainter(pix)
+    renderer.render(painter)
+    painter.end()
+    return QIcon(pix)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -1296,6 +1361,7 @@ class MacanPdfToolsApp(QMainWindow):
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
         self.nav_list.setFixedWidth(210)
+        self.nav_list.setIconSize(QSize(20, 20))
         self._populate_nav()
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
         body_layout.addWidget(self.nav_list)
@@ -1372,12 +1438,15 @@ class MacanPdfToolsApp(QMainWindow):
 
     def _populate_nav(self):
         self.nav_list.clear()
-        self.nav_list.addItems([
-            self.lang["nav_img2pdf"],
-            self.lang["nav_pdf2img"],
-            self.lang["nav_merger"],
-            self.lang["nav_docconv"],
-        ])
+        nav_items = [
+            ("img2pdf", self.lang["nav_img2pdf"]),
+            ("pdf2img", self.lang["nav_pdf2img"]),
+            ("merger", self.lang["nav_merger"]),
+            ("docconv", self.lang["nav_docconv"]),
+        ]
+        for icon_key, label in nav_items:
+            item = QListWidgetItem(svg_to_icon(icon_key), label)
+            self.nav_list.addItem(item)
 
     def _set_window_title(self):
         self.setWindowTitle(self.lang["window_title"].format(version=APP_VERSION))
