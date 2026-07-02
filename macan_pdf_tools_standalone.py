@@ -43,7 +43,8 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QListWidget, QListWidgetItem, QAbstractItemView,
     QFileDialog, QLineEdit, QComboBox, QSpinBox, QFrame, QProgressBar,
-    QMessageBox, QStackedWidget, QSplitter, QScrollArea, QSizePolicy
+    QMessageBox, QStackedWidget, QSplitter, QScrollArea, QSizePolicy,
+    QCheckBox
 )
 from PySide6.QtCore import Qt, QSize, QThread, QObject, Signal, Slot, QRunnable, QThreadPool, QSettings, QByteArray, QUrl
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QDragEnterEvent, QDragMoveEvent, QDropEvent, QDesktopServices, QFont
@@ -76,7 +77,7 @@ except ImportError:
     HAS_OPENPYXL = False
 
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 ORG_NAME = "MacanAngkasa"
 APP_NAME = "MacanPdfToolsStandalone"
 IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.bmp', '.webp', '.gif']
@@ -113,6 +114,7 @@ LANGUAGES = {
         "output_placeholder": "Pilih folder output...",
         "choose_folder_btn": "Pilih Folder",
         "choose_folder_title": "Pilih Folder Output",
+        "same_as_source_label": "Sama seperti folder sumber",
         "status_ready": "Siap.",
         "status_stopped": "Dihentikan oleh pengguna.",
         "start_btn": "Mulai",
@@ -219,6 +221,7 @@ LANGUAGES = {
         "output_placeholder": "Select output folder...",
         "choose_folder_btn": "Choose Folder",
         "choose_folder_title": "Select Output Folder",
+        "same_as_source_label": "Same as source folder",
         "status_ready": "Ready.",
         "status_stopped": "Stopped by user.",
         "start_btn": "Start",
@@ -1013,32 +1016,70 @@ class PdfToolsWorker(QObject):
 class OutputFolderRow(QWidget):
     def __init__(self, lang, parent=None):
         super().__init__(parent)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        self.settings = QSettings(ORG_NAME, APP_NAME)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(4)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
         self.output_label = QLabel(lang["output_label"])
         self.path_edit = QLineEdit()
         self.path_edit.setReadOnly(True)
         self.path_edit.setPlaceholderText(lang["output_placeholder"])
         self.browse_btn = QPushButton(lang["choose_folder_btn"])
         self.browse_btn.clicked.connect(self._browse)
-        layout.addWidget(self.output_label)
-        layout.addWidget(self.path_edit, 1)
-        layout.addWidget(self.browse_btn)
+        row.addWidget(self.output_label)
+        row.addWidget(self.path_edit, 1)
+        row.addWidget(self.browse_btn)
+        outer.addLayout(row)
+
+        self.same_as_source_checkbox = QCheckBox(lang["same_as_source_label"])
+        self.same_as_source_checkbox.toggled.connect(self._on_same_as_source_toggled)
+        outer.addWidget(self.same_as_source_checkbox)
+
         self.lang = lang
+
+        # ── restore last used output path & "same as source" state ──
+        saved_path = self.settings.value("output/last_path", "")
+        if saved_path:
+            self.path_edit.setText(saved_path)
+        saved_same_as_source = self.settings.value("output/same_as_source", False)
+        if isinstance(saved_same_as_source, str):
+            saved_same_as_source = saved_same_as_source.lower() == "true"
+        self.same_as_source_checkbox.setChecked(bool(saved_same_as_source))
+        self._on_same_as_source_toggled(self.same_as_source_checkbox.isChecked())
 
     def retranslate(self, lang):
         self.lang = lang
         self.output_label.setText(lang["output_label"])
         self.path_edit.setPlaceholderText(lang["output_placeholder"])
         self.browse_btn.setText(lang["choose_folder_btn"])
+        self.same_as_source_checkbox.setText(lang["same_as_source_label"])
 
     def _browse(self):
         folder = QFileDialog.getExistingDirectory(self, self.lang["choose_folder_title"])
         if folder:
             self.path_edit.setText(folder)
+            self.settings.setValue("output/last_path", folder)
+
+    def _on_same_as_source_toggled(self, checked):
+        self.path_edit.setEnabled(not checked)
+        self.browse_btn.setEnabled(not checked)
+        self.settings.setValue("output/same_as_source", checked)
+
+    def is_same_as_source(self):
+        return self.same_as_source_checkbox.isChecked()
 
     def get_path(self):
         return self.path_edit.text()
+
+    def get_effective_path(self, source_paths=None):
+        """Path aktual yang dipakai: folder sumber (jika checkbox aktif) atau path manual."""
+        if self.is_same_as_source() and source_paths:
+            return os.path.dirname(os.path.abspath(source_paths[0]))
+        return self.get_path()
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -1160,8 +1201,8 @@ class BaseToolPage(QWidget):
         return [p for p in self.drop_area.get_all_file_paths()
                 if os.path.splitext(p)[1].lower() in exts]
 
-    def _validate_output(self):
-        out = self.output_row.get_path()
+    def _validate_output(self, source_paths=None):
+        out = self.output_row.get_effective_path(source_paths)
         if not out or not os.path.isdir(out):
             QMessageBox.warning(self, self.lang["error_title"], self.lang["error_no_output"])
             return None
@@ -1204,7 +1245,7 @@ class BaseToolPage(QWidget):
         self._cleanup_thread()
 
     def _open_output_folder(self):
-        out = self.output_row.get_path()
+        out = getattr(self, "_last_output_path", None) or self.output_row.get_path()
         try:
             open_in_file_manager(out)
         except Exception as e:
@@ -1317,9 +1358,10 @@ class ImageToPdfPage(BaseToolPage):
         if not img_paths:
             QMessageBox.warning(self, self.lang["error_title"], self.lang["img2pdf_no_files"])
             return
-        out = self._validate_output()
+        out = self._validate_output(img_paths)
         if not out:
             return
+        self._last_output_path = out
         single = self.output_combo.currentIndex() == 0
         mode = 'img2pdf_single' if single else 'img2pdf_multi'
         worker = PdfToolsWorker(
@@ -1374,9 +1416,10 @@ class PdfToImagePage(BaseToolPage):
         if not pdf_paths:
             QMessageBox.warning(self, self.lang["error_title"], self.lang["pdf2img_no_files"])
             return
-        out = self._validate_output()
+        out = self._validate_output(pdf_paths)
         if not out:
             return
+        self._last_output_path = out
         worker = PdfToolsWorker(
             mode='pdf2img', input_paths=pdf_paths, output_path=out,
             fmt=self.format_combo.currentText(),
@@ -1471,9 +1514,10 @@ class PdfMergerPage(BaseToolPage):
         if len(pdf_paths) < 2:
             QMessageBox.warning(self, self.lang["error_title"], self.lang["merger_no_files"])
             return
-        out = self._validate_output()
+        out = self._validate_output(pdf_paths)
         if not out:
             return
+        self._last_output_path = out
         worker = PdfToolsWorker(
             mode='merge', input_paths=pdf_paths, output_path=out,
             quality_idx=self.quality_combo.currentIndex(),
@@ -1528,9 +1572,10 @@ class PdfDocConversionPage(BaseToolPage):
         if not pdf_paths:
             QMessageBox.warning(self, self.lang["error_title"], self.lang["docconv_no_files"])
             return
-        out = self._validate_output()
+        out = self._validate_output(pdf_paths)
         if not out:
             return
+        self._last_output_path = out
         target = self.target_combo.currentText()
         mode_map = {"TXT": "pdf2txt", "DOCX": "pdf2docx", "XLSX": "pdf2xlsx"}
         worker = PdfToolsWorker(mode=mode_map[target], input_paths=pdf_paths, output_path=out)
