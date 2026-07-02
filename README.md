@@ -9,10 +9,6 @@ Extracted from the PDF Tools page of [Macan Converter](https://github.com/danx12
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
 
 ---
-<img width="1024" height="1536" alt="macan pdf tools v1 2 0" src="https://github.com/user-attachments/assets/86b6886d-ccea-4338-b944-7a05901a97af" />
-
-
----
 
 ## Why this exists
 
